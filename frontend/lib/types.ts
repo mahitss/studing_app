@@ -207,6 +207,7 @@ export type Dashboard = {
   challenges: Array<{
     id: string;
     title: string;
+    description: string;
     target: number;
     value: number;
     completed: boolean;

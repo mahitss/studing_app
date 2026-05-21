@@ -520,9 +520,6 @@ export default function StudyTrackerApp() {
           }
         }
       };
-          }
-        }
-      };
 
       return () => {
         recognition.onend = null;

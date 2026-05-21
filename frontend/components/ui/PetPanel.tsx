@@ -3,7 +3,7 @@ import { Heart, Star, Shield, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface PetProps {
-  pet: {
+  pet?: {
     name: string;
     type: string;
     level: number;
@@ -13,6 +13,13 @@ interface PetProps {
 }
 
 export default function PetPanel({ pet, xp }: PetProps) {
+  if (!pet) {
+    return (
+      <div className="glass-card p-6 flex items-center justify-center h-full text-center">
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted">No Companion Assigned</p>
+      </div>
+    );
+  }
   const nextLevelXp = pet.level * 500;
   const progress = (xp % 500) / 500 * 100;
 

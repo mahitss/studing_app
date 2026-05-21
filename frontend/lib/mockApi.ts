@@ -166,7 +166,7 @@ function defaultDashboard(store: Store): Dashboard {
       nextLevelXp: 600
     },
     challenges: [
-      { id: "study-20h", title: "Study 20 hours this week", target: 1200, value: studiedMinutes, completed: studiedMinutes >= 1200, rewardXp: 250, rewardBadge: "20h Warrior" }
+      { id: "study-20h", title: "Study 20 hours this week", description: "Complete 20 hours of focused study time within the current week.", target: 1200, value: studiedMinutes, completed: studiedMinutes >= 1200, rewardXp: 250, rewardBadge: "20h Warrior" }
     ],
     goalTypes: {
       dailyMinutes: store.dailyMinutes,
