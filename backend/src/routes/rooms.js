@@ -5,7 +5,36 @@ const router = express.Router();
 
 router.get("/", requireAuth, async (req, res, next) => {
   try {
-    const rooms = await StudyRoom.find({}).populate("ownerId", "name level college").limit(20);
+    const { limit, page, name } = req.query;
+    const query = {};
+
+    if (name) {
+      query.name = { $regex: String(name), $options: "i" };
+    }
+
+    if (limit || page) {
+      const parsedLimit = Math.min(Math.max(1, parseInt(limit) || 20), 100);
+      const parsedPage = Math.max(1, parseInt(page) || 1);
+      const skip = (parsedPage - 1) * parsedLimit;
+
+      const total = await StudyRoom.countDocuments(query);
+      const rooms = await StudyRoom.find(query)
+        .populate("ownerId", "name level college")
+        .skip(skip)
+        .limit(parsedLimit);
+
+      return res.json({
+        rooms,
+        pagination: {
+          total,
+          page: parsedPage,
+          limit: parsedLimit,
+          pages: Math.ceil(total / parsedLimit)
+        }
+      });
+    }
+
+    const rooms = await StudyRoom.find(query).populate("ownerId", "name level college").limit(50);
     res.json(rooms);
   } catch (err) {
     next(err);

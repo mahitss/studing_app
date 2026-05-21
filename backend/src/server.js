@@ -4,6 +4,7 @@ const { Server } = require("socket.io");
 const app = require("./app");
 const connectDB = require("./config/db");
 const logger = require("./utils/logger");
+const { startScheduler } = require("./jobs/scheduler");
 
 process.on("uncaughtException", (err) => {
   logger.error(`[GrindLock] UNCAUGHT EXCEPTION: ${err.message}`);
@@ -104,6 +105,7 @@ io.on("connection", (socket) => {
 
 const start = async () => {
   await connectDB();
+  startScheduler();
   server.listen(PORT, "0.0.0.0", () => {
     logger.info(`[GrindLock] Real-Time Engine active on port ${PORT} (Neural Interface: 0.0.0.0)`);
   });

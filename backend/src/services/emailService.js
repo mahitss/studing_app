@@ -123,4 +123,70 @@ async function sendProgressEmail(user, email) {
   return summary;
 }
 
-module.exports = { sendProgressEmail };
+async function sendVerificationEmail(user, token) {
+  const mailer = getTransporter();
+  const fromEmail = String(process.env.MAIL_FROM || process.env.SMTP_USER || "noreply@grindlock.com").trim();
+  const appUrl = String(process.env.APP_URL || "https://grindlock.vercel.app").trim();
+  const verificationLink = `${appUrl}/verify-email?token=${token}`;
+
+  const subject = "Verify Your GrindLock Account";
+  const text = `Hi ${user.name},\n\nPlease verify your account by clicking the link: ${verificationLink}`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;padding:20px;background:#0b1220;color:#e6edf9;border-radius:14px;">
+      <h2 style="color:#7c8cff;margin:0 0 10px;">Verify Your GrindLock Account</h2>
+      <p style="color:#b8c6dd;">Hi ${user.name}, please click the button below to verify your email and unlock full access.</p>
+      <a href="${verificationLink}" style="display:inline-block;margin-top:15px;padding:12px 20px;border-radius:999px;background:#7c8cff;color:#fff;text-decoration:none;font-weight:bold;">Verify Account</a>
+    </div>
+  `;
+
+  if (!mailer) {
+    logger.info("--- SIMULATED VERIFICATION EMAIL ---");
+    logger.info(`To: ${user.email}`);
+    logger.info(`Link: ${verificationLink}`);
+    logger.info("------------------------------------");
+    return;
+  }
+
+  try {
+    await mailer.sendMail({ from: fromEmail, to: user.email, subject, text, html });
+  } catch (err) {
+    logger.error(`❌ Verification Email transmission failed: ${err.message}`);
+  }
+}
+
+async function sendResetPasswordEmail(user, token) {
+  const mailer = getTransporter();
+  const fromEmail = String(process.env.MAIL_FROM || process.env.SMTP_USER || "noreply@grindlock.com").trim();
+  const appUrl = String(process.env.APP_URL || "https://grindlock.vercel.app").trim();
+  const resetLink = `${appUrl}/reset-password?token=${token}`;
+
+  const subject = "Reset Your GrindLock Password";
+  const text = `Hi ${user.name},\n\nYou requested to reset your password. Reset link: ${resetLink}\nThis link expires in 1 hour.`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;padding:20px;background:#0b1220;color:#e6edf9;border-radius:14px;">
+      <h2 style="color:#ff7c7c;margin:0 0 10px;">Reset Your GrindLock Password</h2>
+      <p style="color:#b8c6dd;">Hi ${user.name}, click the button below to choose a new password. This link will expire in 1 hour.</p>
+      <a href="${resetLink}" style="display:inline-block;margin-top:15px;padding:12px 20px;border-radius:999px;background:#ff7c7c;color:#fff;text-decoration:none;font-weight:bold;">Reset Password</a>
+    </div>
+  `;
+
+  if (!mailer) {
+    logger.info("--- SIMULATED RESET PASSWORD EMAIL ---");
+    logger.info(`To: ${user.email}`);
+    logger.info(`Link: ${resetLink}`);
+    logger.info("--------------------------------------");
+    return;
+  }
+
+  try {
+    await mailer.sendMail({ from: fromEmail, to: user.email, subject, text, html });
+  } catch (err) {
+    logger.error(`❌ Reset Password Email transmission failed: ${err.message}`);
+  }
+}
+
+module.exports = {
+  sendProgressEmail,
+  sendVerificationEmail,
+  sendResetPasswordEmail
+};

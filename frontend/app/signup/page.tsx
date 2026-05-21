@@ -4,29 +4,62 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import FloatingScene from "../../components/FloatingScene";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import toast from "react-hot-toast";
 import { registerUser, saveAuthSession } from "../../lib/api";
+
+const signupSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  identity: z.enum(["Casual", "Serious", "Hardcore"]),
+  why: z.string().min(3, "Motivation must be at least 3 characters"),
+});
+
+type SignupFormValues = z.infer<typeof signupSchema>;
 
 export default function SignUpPage() {
   const router = useRouter();
-  const [name, setName] = useState("Focused Student");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [identity, setIdentity] = useState<"Casual" | "Serious" | "Hardcore">("Serious");
-  const [why, setWhy] = useState("Job - 12 LPA");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const onSignup = async () => {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignupFormValues>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      name: "Focused Student",
+      email: "",
+      password: "",
+      identity: "Serious",
+      why: "Job - 12 LPA",
+    },
+  });
+
+  const onSubmit = async (data: SignupFormValues) => {
     if (loading) return;
     try {
       setError("");
       setLoading(true);
-      const response = await registerUser(name, email, password, "General", identity, why);
+      const response = await registerUser(
+        data.name,
+        data.email,
+        data.password,
+        "General",
+        data.identity,
+        data.why
+      );
       saveAuthSession(response.user._id, response.token);
+      toast.success("Welcome aboard! Neural uplink initialized.");
       router.push("/dashboard");
-    } catch (err) {
-      setError((err as Error).message || "Sign up failed");
+    } catch (err: any) {
+      const errMsg = err.message || "Registration protocol failure.";
+      setError(errMsg);
+      toast.error(errMsg);
     } finally {
       setLoading(false);
     }
@@ -34,60 +67,105 @@ export default function SignUpPage() {
 
   return (
     <main className="auth-wrapper">
-      {/* 3D background provided by RootLayout */}
-
-      <motion.section 
+      <motion.section
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
         className="auth-form max-w-[500px]"
       >
         <h1>Create Account</h1>
-        
-        <div className="flex flex-col gap-6 text-left w-full mt-4">
+
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 text-left w-full mt-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-1.5">
               <label>Full Name</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Focused Student" />
+              <input
+                {...register("name")}
+                placeholder="Focused Student"
+                className={errors.name ? "border-red-500/50" : ""}
+              />
+              {errors.name && (
+                <p className="text-red-400 text-[10px] uppercase font-bold tracking-wider">
+                  {errors.name.message}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <label>Secure Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@domain.com" />
+              <input
+                type="email"
+                {...register("email")}
+                placeholder="name@domain.com"
+                className={errors.email ? "border-red-500/50" : ""}
+              />
+              {errors.email && (
+                <p className="text-red-400 text-[10px] uppercase font-bold tracking-wider">
+                  {errors.email.message}
+                </p>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-1.5">
               <label>Master Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min. 8 characters" />
+              <input
+                type="password"
+                {...register("password")}
+                placeholder="Min. 8 characters"
+                className={errors.password ? "border-red-500/50" : ""}
+              />
+              {errors.password && (
+                <p className="text-red-400 text-[10px] uppercase font-bold tracking-wider">
+                  {errors.password.message}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <label>Commitment Level</label>
-              <select value={identity} onChange={(e) => setIdentity(e.target.value as "Casual" | "Serious" | "Hardcore")}>
+              <select {...register("identity")}>
                 <option value="Casual">Casual</option>
                 <option value="Serious">Serious</option>
                 <option value="Hardcore">Hardcore</option>
               </select>
+              {errors.identity && (
+                <p className="text-red-400 text-[10px] uppercase font-bold tracking-wider">
+                  {errors.identity.message}
+                </p>
+              )}
             </div>
           </div>
-          
+
           <div className="space-y-1.5">
             <label>Why are you studying?</label>
-            <input 
-              value={why} 
-              onChange={(e) => setWhy(e.target.value)} 
-              placeholder="Your high-stakes motivation..." 
+            <input
+              {...register("why")}
+              placeholder="Your high-stakes motivation..."
+              className={errors.why ? "border-red-500/50" : ""}
             />
+            {errors.why && (
+              <p className="text-red-400 text-[10px] uppercase font-bold tracking-wider">
+                {errors.why.message}
+              </p>
+            )}
           </div>
-        </div>
 
-        <button className="btn-primary w-full mt-8 py-4 text-sm tracking-widest uppercase font-bold" onClick={onSignup} disabled={loading}>
-          {loading ? "Initializing..." : "Start My Journey"}
-        </button>
+          <button
+            type="submit"
+            className="btn-primary w-full mt-4 py-4 text-sm tracking-widest uppercase font-bold"
+            disabled={loading}
+          >
+            {loading ? "Initializing..." : "Start My Journey"}
+          </button>
+        </form>
+
         <p className="text-xs text-center mt-6 text-muted font-medium">
-          Already have account? <Link href="/signin" className="text-accent font-bold hover:underline">Sign in</Link>
+          Already have account?{" "}
+          <Link href="/signin" className="text-accent font-bold hover:underline">
+            Sign in
+          </Link>
         </p>
-        
+
         {error && (
           <div className="mt-8 p-4 glass rounded-2xl border-l-2 border-danger animate-shake">
             <div className="flex items-center gap-3">
@@ -100,4 +178,3 @@ export default function SignUpPage() {
     </main>
   );
 }
-

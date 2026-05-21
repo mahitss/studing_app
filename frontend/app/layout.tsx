@@ -20,11 +20,23 @@ export const metadata: Metadata = {
 };
 
 import GrindLock3D from "../components/GrindLock3D";
+import { Toaster } from "react-hot-toast";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body className={`${bodyFont.variable} ${displayFont.variable}`}>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            style: {
+              background: "#0c1220",
+              color: "#e6edf9",
+              border: "1px solid rgba(124, 140, 255, 0.15)",
+              fontFamily: "var(--font-body), sans-serif",
+            },
+          }}
+        />
         <GrindLock3D />
         <div className="relative z-10">
           {children}

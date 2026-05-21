@@ -1,29 +1,63 @@
 const express = require("express");
 const router = express.Router();
+const rateLimit = require("express-rate-limit");
 const User = require("../models/User");
+
+const sessionLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // limit each IP to 30 session operations per windowMs
+  message: { message: "Too many session operations. Uplink throttled." },
+  standardHeaders: true,
+  legacyHeaders: false
+});
 const StudySession = require("../models/StudySession");
 const DailyGoal = require("../models/DailyGoal");
+const AuditLog = require("../models/AuditLog");
 const { requireAuth, requireSelf } = require("../middleware/auth");
 const trackerService = require("../services/trackerService");
 const emailService = require("../services/emailService");
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = require("../middleware/auth");
+const validate = require("../middleware/validate");
+const { startSessionSchema, endSessionSchema, offlineSyncSchema } = require("../validations/session.validation");
+const { logAction } = require("../utils/auditLogger");
+const { dispatchWebhook } = require("../utils/webhookDispatcher");
 
-const signToken = (user) =>
+const signAccessToken = (user) =>
   jwt.sign(
-    {
-      sub: String(user._id),
-      email: user.email || "",
-      name: user.name || "Focused Student"
-    },
+    { sub: String(user._id) },
+    JWT_SECRET,
+    { expiresIn: "15m" }
+  );
+
+const signRefreshToken = (user) =>
+  jwt.sign(
+    { sub: String(user._id) },
     JWT_SECRET,
     { expiresIn: "7d" }
   );
+
+const setAuthCookies = (res, accessToken, refreshToken) => {
+  res.cookie("authToken", accessToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 15 * 60 * 1000 // 15 minutes
+  });
+
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  });
+};
 
 const sanitizeUser = (userDoc) => {
   const user = typeof userDoc.toObject === "function" ? userDoc.toObject() : { ...userDoc };
   delete user.passwordHash;
   delete user.authToken;
+  delete user.refreshToken;
   return user;
 };
 
@@ -38,10 +72,16 @@ router.post("/bootstrap", async (req, res, next) => {
       motivationWhy: motivationWhy || ""
     });
 
-    const token = signToken(user);
-    const dashboard = await trackerService.dashboardForUser(user._id);
+    const accessToken = signAccessToken(user);
+    const refreshToken = signRefreshToken(user);
+    user.refreshToken = refreshToken;
+    await user.save();
+    await logAction({ userId: user._id, action: "USER_BOOTSTRAP", req });
 
-    res.status(201).json({ user: sanitizeUser(user), token, dashboard });
+    setAuthCookies(res, accessToken, refreshToken);
+
+    const dashboard = await trackerService.dashboardForUser(user._id);
+    res.status(201).json({ user: sanitizeUser(user), token: accessToken, dashboard });
   } catch (err) {
     next(err);
   }
@@ -64,6 +104,7 @@ router.put("/:userId/goals/today", requireAuth, requireSelf, async (req, res, ne
     const goal = await trackerService.ensureDailyGoal(req.params.userId);
     goal.targetMinutes = targetMinutes;
     await goal.save();
+    await logAction({ userId: req.params.userId, action: "GOAL_TODAY_UPDATE", req, details: { targetMinutes } });
     
     const dashboard = await trackerService.dashboardForUser(req.params.userId);
     res.json({ dashboard });
@@ -85,6 +126,7 @@ router.put("/:userId/goals/config", requireAuth, requireSelf, async (req, res, n
 
     user.markModified('goalConfig');
     await user.save();
+    await logAction({ userId: req.params.userId, action: "GOAL_CONFIG_UPDATE", req, details: { dailyMinutes, weeklyTargetMinutes, weeklySessionTarget } });
     const dashboard = await trackerService.dashboardForUser(req.params.userId);
     res.json({ dashboard });
   } catch (err) {
@@ -127,19 +169,29 @@ router.get("/:userId/sessions/today", requireAuth, requireSelf, async (req, res,
   }
 });
 
-// POST /users/:userId/sessions/offline-sync
-router.post("/:userId/sessions/offline-sync", requireAuth, requireSelf, async (req, res, next) => {
+router.post("/:userId/sessions/offline-sync", requireAuth, requireSelf, sessionLimiter, validate(offlineSyncSchema), async (req, res, next) => {
   try {
     const { sessions } = req.body;
-    if (!Array.isArray(sessions)) return res.status(400).json({ message: "Invalid sessions format" });
 
-    const created = await StudySession.insertMany(
-      sessions.map(s => ({
+    const validatedSessions = sessions.map(s => {
+      const start = new Date(s.startedAt).getTime();
+      const end = new Date(s.endedAt).getTime();
+      let focused = Number(s.focusedMinutes) || 0;
+      if (!isNaN(start) && !isNaN(end)) {
+        const maxMinutes = Math.floor((end - start) / 60000);
+        focused = Math.min(focused, maxMinutes > 0 ? maxMinutes : 0);
+      } else {
+        focused = 0;
+      }
+      return {
         ...s,
+        focusedMinutes: focused,
         userId: req.params.userId,
         status: "completed"
-      }))
-    );
+      };
+    });
+
+    const created = await StudySession.insertMany(validatedSessions);
 
     await trackerService.recalculateDailyTotals(req.params.userId);
     const dashboard = await trackerService.dashboardForUser(req.params.userId);
@@ -292,7 +344,7 @@ router.get("/:userId/analytics", requireAuth, requireSelf, async (req, res, next
 
 // SESSIONS MANAGEMENT
 // POST /users/:userId/sessions/start
-router.post("/:userId/sessions/start", requireAuth, requireSelf, async (req, res, next) => {
+router.post("/:userId/sessions/start", requireAuth, requireSelf, sessionLimiter, validate(startSessionSchema), async (req, res, next) => {
   try {
     const { subject, studyMode, plannedDurationMinutes, riskMode } = req.body;
     const userId = req.params.userId;
@@ -307,6 +359,8 @@ router.post("/:userId/sessions/start", requireAuth, requireSelf, async (req, res
       lastStartedAt: now,
       status: "running"
     });
+    await logAction({ userId, action: "SESSION_START", req, details: { sessionId: session._id, subject: session.subject, studyMode: session.studyMode } });
+    dispatchWebhook(userId, "session.start", { sessionId: session._id, subject: session.subject, studyMode: session.studyMode }).catch(() => {});
     res.status(201).json({ session });
   } catch (err) {
     next(err);
@@ -314,7 +368,7 @@ router.post("/:userId/sessions/start", requireAuth, requireSelf, async (req, res
 });
 
 // POST /users/:userId/sessions/:sessionId/pause
-router.post("/:userId/sessions/:sessionId/pause", requireAuth, requireSelf, async (req, res, next) => {
+router.post("/:userId/sessions/:sessionId/pause", requireAuth, requireSelf, sessionLimiter, async (req, res, next) => {
   try {
     const session = await StudySession.findById(req.params.sessionId);
     if (!session) return res.status(404).json({ message: "Session not found" });
@@ -336,7 +390,7 @@ router.post("/:userId/sessions/:sessionId/pause", requireAuth, requireSelf, asyn
 });
 
 // POST /users/:userId/sessions/:sessionId/resume
-router.post("/:userId/sessions/:sessionId/resume", requireAuth, requireSelf, async (req, res, next) => {
+router.post("/:userId/sessions/:sessionId/resume", requireAuth, requireSelf, sessionLimiter, async (req, res, next) => {
   try {
     const session = await StudySession.findById(req.params.sessionId);
     if (!session) return res.status(404).json({ message: "Session not found" });
@@ -357,7 +411,7 @@ router.post("/:userId/sessions/:sessionId/resume", requireAuth, requireSelf, asy
 });
 
 // POST /users/:userId/sessions/:sessionId/end
-router.post("/:userId/sessions/:sessionId/end", requireAuth, requireSelf, async (req, res, next) => {
+router.post("/:userId/sessions/:sessionId/end", requireAuth, requireSelf, sessionLimiter, validate(endSessionSchema), async (req, res, next) => {
   try {
     const { 
       inactiveSeconds, notes, subject, stopReason, 
@@ -367,6 +421,9 @@ router.post("/:userId/sessions/:sessionId/end", requireAuth, requireSelf, async 
     
     const session = await StudySession.findById(req.params.sessionId);
     if (!session) return res.status(404).json({ message: "Session not found" });
+    if (session.status === "completed") {
+      return res.status(400).json({ message: "Session is already completed" });
+    }
 
     const now = new Date();
     if (session.status === "running" && session.lastStartedAt) {
@@ -374,11 +431,19 @@ router.post("/:userId/sessions/:sessionId/end", requireAuth, requireSelf, async 
       session.elapsedSeconds += Math.max(0, delta);
     }
 
+    // Server timing enforcement
+    const maxPossibleElapsed = Math.floor((now.getTime() - new Date(session.startedAt).getTime()) / 1000);
+    if (session.elapsedSeconds > maxPossibleElapsed) {
+      session.elapsedSeconds = Math.max(0, maxPossibleElapsed);
+    }
+
     session.status = "completed";
     session.lastStartedAt = null;
     session.endedAt = now.toISOString();
     session.focusedMinutes = Math.floor((session.elapsedSeconds || 0) / 60);
-    session.inactiveSeconds = inactiveSeconds || 0;
+    
+    const validInactive = Math.min(Math.max(0, inactiveSeconds || 0), session.elapsedSeconds || 0);
+    session.inactiveSeconds = validInactive;
     session.notes = notes !== undefined ? notes : session.notes;
     session.subject = subject || session.subject;
     session.stopReason = stopReason || "";
@@ -389,6 +454,8 @@ router.post("/:userId/sessions/:sessionId/end", requireAuth, requireSelf, async 
     if (typeof riskMode === "boolean") session.riskMode = riskMode;
 
     await session.save();
+    await logAction({ userId: session.userId, action: "SESSION_END", req, details: { sessionId: session._id, focusedMinutes: session.focusedMinutes } });
+    dispatchWebhook(session.userId, "session.end", { sessionId: session._id, focusedMinutes: session.focusedMinutes }).catch(() => {});
     
     await trackerService.recalculateDailyTotals(session.userId);
     const dashboard = await trackerService.dashboardForUser(session.userId);
@@ -400,7 +467,7 @@ router.post("/:userId/sessions/:sessionId/end", requireAuth, requireSelf, async 
 });
 
 // POST /users/:userId/sessions/:sessionId/reset
-router.post("/:userId/sessions/:sessionId/reset", requireAuth, requireSelf, async (req, res, next) => {
+router.post("/:userId/sessions/:sessionId/reset", requireAuth, requireSelf, sessionLimiter, async (req, res, next) => {
   try {
     const session = await StudySession.findById(req.params.sessionId);
     if (!session) return res.status(404).json({ message: "Session not found" });
@@ -408,9 +475,58 @@ router.post("/:userId/sessions/:sessionId/reset", requireAuth, requireSelf, asyn
     session.status = "reset";
     session.stopReason = req.body.stopReason || "reset";
     await session.save();
+    await logAction({ userId: req.params.userId, action: "SESSION_RESET", req, details: { sessionId: session._id } });
 
     const dashboard = await trackerService.dashboardForUser(req.params.userId);
     res.json({ session, dashboard });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /users/:userId
+router.delete("/:userId", requireAuth, requireSelf, async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.deletedAt = new Date();
+    user.isActive = false;
+    user.refreshToken = "";
+    await user.save();
+    await logAction({ userId: req.params.userId, action: "ACCOUNT_DEACTIVATE", req });
+
+    res.clearCookie("authToken");
+    res.clearCookie("refreshToken");
+    res.json({ message: "Account deleted successfully (soft delete)" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /users/:userId/export
+router.get("/:userId/export", requireAuth, requireSelf, async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.userId).select("-passwordHash -refreshToken");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const sessions = await StudySession.find({ userId: req.params.userId }).sort({ startedAt: -1 });
+    const goals = await DailyGoal.find({ userId: req.params.userId }).sort({ date: -1 });
+    const auditLogs = await AuditLog.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      profile: user,
+      sessions,
+      goals,
+      auditLogs
+    };
+
+    await logAction({ userId: req.params.userId, action: "USER_DATA_EXPORT", req });
+
+    res.setHeader("Content-Disposition", `attachment; filename=study_tracker_export_${req.params.userId}.json`);
+    res.setHeader("Content-Type", "application/json");
+    res.json(exportData);
   } catch (err) {
     next(err);
   }

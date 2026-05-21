@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Timer as TimerIcon, Play, Pause, RefreshCw, AlertTriangle, Music } from "lucide-react";
 import { StudySession } from "../../lib/types";
 import PomodoroTimer from "../ui/PomodoroTimer";
 import SpotifyPlayer from "../ui/SpotifyPlayer";
+import toast from "react-hot-toast";
 
 interface TimerViewProps {
   activeSession: StudySession | null;
@@ -15,6 +16,7 @@ interface TimerViewProps {
   onResume: () => void;
   onEnd: () => void;
   formatHMS: (s: number) => string;
+  onSetDuration?: (mins: number, mode: "pomodoro" | "deep" | "custom") => void;
 }
 
 const TimerView: React.FC<TimerViewProps> = ({ 
@@ -26,10 +28,57 @@ const TimerView: React.FC<TimerViewProps> = ({
   onPause,
   onResume,
   onEnd,
-  formatHMS
+  formatHMS,
+  onSetDuration
 }) => {
   const [showMusic, setShowMusic] = useState(false);
   const progress = plannedDuration > 0 ? (elapsed / (plannedDuration * 60)) * 100 : 0;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (status === "idle") {
+          onStart();
+        } else if (status === "running") {
+          onPause();
+        } else if (status === "paused") {
+          onResume();
+        }
+      } else if (e.code === "Escape") {
+        if (status !== "idle") {
+          e.preventDefault();
+          onEnd();
+        }
+      } else if (status === "idle" && onSetDuration) {
+        if (e.key === "1") {
+          e.preventDefault();
+          onSetDuration(25, "pomodoro");
+          toast.success("Preset: Pomodoro Block (25m) locked.");
+        } else if (e.key === "2") {
+          e.preventDefault();
+          onSetDuration(50, "deep");
+          toast.success("Preset: Deep Work Block (50m) locked.");
+        } else if (e.key === "3") {
+          e.preventDefault();
+          onSetDuration(90, "custom");
+          toast.success("Preset: Extended block (90m) locked.");
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [status, onStart, onPause, onResume, onEnd, onSetDuration]);
   
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 py-12 items-start">

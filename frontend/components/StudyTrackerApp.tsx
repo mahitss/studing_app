@@ -653,6 +653,10 @@ export default function StudyTrackerApp() {
                 onResume={handlePauseResume}
                 onEnd={handleEnd}
                 formatHMS={formatHMS}
+                onSetDuration={(mins, mode) => {
+                  setPlannedDuration(mins);
+                  setStudyMode(mode);
+                }}
               />
             )}
             {screen === "analytics" && <NeuralAnalytics data={pythonAnalytics} />}

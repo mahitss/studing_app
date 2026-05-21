@@ -49,10 +49,7 @@ const apiLimiter = rateLimit({
 app.use("/api/auth", authLimiter);
 app.use("/api", routes);
 
-app.use((err, _req, res, _next) => {
-  // eslint-disable-next-line no-console
-  console.error(err);
-  res.status(500).json({ message: "Server error", details: err.message });
-});
+const errorHandler = require("./middleware/errorHandler");
+app.use(errorHandler);
 
 module.exports = app;

@@ -888,18 +888,31 @@ const dashboardForUser = async (userId) => {
   };
 };
 
-const getLeaderboard = async (userId, filter = "global") => {
-  const users = await User.find({}).sort({ xp: -1 }).limit(100);
-  
-  if (filter === "friends") {
-    const user = await User.findById(userId);
-    if (!user) return [];
-    const friendIds = user.friends.map(id => id.toString());
-    friendIds.push(userId.toString());
-    return users.filter(u => friendIds.includes(u._id.toString()));
+const getLeaderboard = async (userId, filter = "global", limit = 100, page = 1) => {
+  const parsedLimit = Math.min(Math.max(1, parseInt(limit) || 100), 200);
+  const parsedPage = Math.max(1, parseInt(page) || 1);
+  const skip = (parsedPage - 1) * parsedLimit;
+
+  let query = {};
+  if (filter && filter !== "global" && filter !== "friends") {
+    query.college = filter;
   }
-  
-  return users.map(u => ({
+
+  if (filter === "friends" && userId) {
+    const user = await User.findById(userId);
+    if (user) {
+      const friendIds = (user.friends || []).map(id => id.toString());
+      friendIds.push(userId.toString());
+      query._id = { $in: friendIds };
+    }
+  }
+
+  const users = await User.find(query)
+    .sort({ xp: -1 })
+    .skip(skip)
+    .limit(parsedLimit);
+
+  const mapped = users.map(u => ({
     _id: u._id,
     name: u.name,
     xp: u.xp,
@@ -907,6 +920,18 @@ const getLeaderboard = async (userId, filter = "global") => {
     streak: u.streak?.current || 0,
     college: u.college
   }));
+
+  const total = await User.countDocuments(query);
+
+  return {
+    leaderboard: mapped,
+    pagination: {
+      total,
+      page: parsedPage,
+      limit: parsedLimit,
+      pages: Math.ceil(total / parsedLimit)
+    }
+  };
 };
 
 const findMentors = async (userId) => {

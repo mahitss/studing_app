@@ -22,9 +22,38 @@ router.post("/", requireAuth, async (req, res, next) => {
 // GET /duels/:userId
 router.get("/:userId", requireAuth, async (req, res, next) => {
   try {
-    const duels = await Duel.find({
+    const { limit, page, status } = req.query;
+    const query = {
       $or: [{ challengerId: req.params.userId }, { opponentId: req.params.userId }]
-    }).sort({ createdAt: -1 });
+    };
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (limit || page) {
+      const parsedLimit = Math.min(Math.max(1, parseInt(limit) || 20), 100);
+      const parsedPage = Math.max(1, parseInt(page) || 1);
+      const skip = (parsedPage - 1) * parsedLimit;
+
+      const total = await Duel.countDocuments(query);
+      const duels = await Duel.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parsedLimit);
+
+      return res.json({
+        duels,
+        pagination: {
+          total,
+          page: parsedPage,
+          limit: parsedLimit,
+          pages: Math.ceil(total / parsedLimit)
+        }
+      });
+    }
+
+    const duels = await Duel.find(query).sort({ createdAt: -1 });
     res.json(duels);
   } catch (err) {
     next(err);

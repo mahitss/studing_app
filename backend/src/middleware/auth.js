@@ -5,7 +5,7 @@ if (!JWT_SECRET && process.env.NODE_ENV === "production") {
   console.error("CRITICAL CONFIG ERROR: JWT_SECRET must be defined in production. Neural Link will fail.");
 }
 
-const requireAuth = (req, res, next) => {
+const requireAuth = async (req, res, next) => {
   const header = req.headers.authorization || "";
   let token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
   
@@ -25,6 +25,13 @@ const requireAuth = (req, res, next) => {
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     req.auth = payload;
+
+    const User = require("../models/User");
+    const user = await User.findById(payload.sub).select("isActive deletedAt");
+    if (!user || !user.isActive || user.deletedAt) {
+      return res.status(401).json({ message: "User account deactivated or deleted" });
+    }
+
     return next();
   } catch (_err) {
     return res.status(401).json({ message: "Invalid or expired token" });

@@ -36,7 +36,17 @@ const userSchema = new mongoose.Schema(
       type: { type: String, default: "robot" },
       level: { type: Number, default: 1 },
       happiness: { type: Number, default: 100, min: 0, max: 100 }
-    }
+    },
+    refreshToken: { type: String, default: "" },
+    deletedAt: { type: Date, default: null },
+    isActive: { type: Boolean, default: true },
+    role: { type: String, enum: ["user", "admin"], default: "user" },
+    twoFactorSecret: { type: String, default: "" },
+    twoFactorEnabled: { type: Boolean, default: false },
+    passwordResetToken: { type: String, default: "" },
+    passwordResetExpires: { type: Date, default: null },
+    isEmailVerified: { type: Boolean, default: false },
+    emailVerificationToken: { type: String, default: "" }
   },
   { timestamps: true }
 );

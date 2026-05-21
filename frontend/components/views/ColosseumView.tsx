@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Plus, Users, Swords } from "lucide-react";
+import { EmptyState } from "../ui/EmptyState";
 
 interface ColosseumViewProps {
   rooms: any[];
@@ -49,9 +50,14 @@ const ColosseumView: React.FC<ColosseumViewProps> = ({ rooms, currentRoom, onJoi
           </div>
         ))}
         {rooms.length === 0 && (
-          <div className="col-span-full glass-light p-20 text-center rounded-3xl opacity-50 border border-dashed border-white/10">
-            <Swords className="mx-auto mb-6 text-muted" size={48} />
-            <p className="text-sm font-black tracking-[0.3em] uppercase">No active clusters found</p>
+          <div className="col-span-full">
+            <EmptyState
+              icon={Swords}
+              title="No Active Clusters"
+              description="There are currently no active synchronized study chambers. Initialize a cluster to study in real-time with other agents."
+              actionLabel="Create Cluster"
+              onActionClick={onCreateRoom}
+            />
           </div>
         )}
       </div>
