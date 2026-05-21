@@ -80,6 +80,10 @@ async function request<T>(path: string, init?: RequestInit, retries = 3): Promis
         await new Promise(resolve => setTimeout(resolve, delay));
         return executeRequest(attempt + 1);
       }
+      
+      if (err.message === 'Failed to fetch') {
+        throw new Error('Backend server is unreachable. Ensure it is running on port 5000.');
+      }
       throw err;
     }
   };
