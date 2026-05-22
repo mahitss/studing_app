@@ -1,6 +1,6 @@
 import React from 'react';
 
-export function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
+export function ErrorFallback({ error, resetErrorBoundary }: { error: any; resetErrorBoundary: () => void }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#070b13] text-[#e6edf9] p-6 font-sans">
       <div className="max-w-md w-full border border-red-500/20 bg-[#0c1220]/80 backdrop-blur-xl p-8 rounded-2xl shadow-[0_0_50px_rgba(239,68,68,0.1)] text-center relative overflow-hidden">

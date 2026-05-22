@@ -47,7 +47,7 @@ const apiLimiter = rateLimit({
 });
 
 app.use("/api/auth", authLimiter);
-app.use("/api", routes);
+app.use("/api", apiLimiter, routes);
 
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);

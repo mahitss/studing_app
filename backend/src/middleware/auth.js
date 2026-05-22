@@ -2,7 +2,8 @@ const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "production" ? undefined : "dev-local-secret-only");
 
 if (!JWT_SECRET && process.env.NODE_ENV === "production") {
-  console.error("CRITICAL CONFIG ERROR: JWT_SECRET must be defined in production. Neural Link will fail.");
+  console.error("FATAL CONFIG ERROR: JWT_SECRET must be defined in production. Shutdown initiated.");
+  process.exit(1);
 }
 
 const requireAuth = async (req, res, next) => {

@@ -1,4 +1,15 @@
 require("dotenv").config();
+
+// Fail fast on startup if critical env variables are missing
+if (!process.env.MONGODB_URI) {
+  console.error("FATAL CONFIG ERROR: MONGODB_URI is not defined.");
+  process.exit(1);
+}
+if (!process.env.JWT_SECRET) {
+  console.error("FATAL CONFIG ERROR: JWT_SECRET is not defined.");
+  process.exit(1);
+}
+
 const http = require("http");
 const { Server } = require("socket.io");
 const app = require("./app");
@@ -37,12 +48,42 @@ server.on("error", (err) => {
   }
 });
 
-if (process.env.NODE_ENV === "production") {
-  if (!process.env.JWT_SECRET) {
-    logger.error("FATAL ERROR: JWT_SECRET must be defined in production. Shutdown initiated.");
-    process.exit(1);
+// Socket.io JWT authentication middleware
+const parseCookies = (cookieString) => {
+  const cookies = {};
+  if (!cookieString) return cookies;
+  cookieString.split(";").forEach((cookie) => {
+    const parts = cookie.split("=");
+    const name = parts[0].trim();
+    const value = parts.slice(1).join("=").trim();
+    if (name) {
+      cookies[name] = decodeURIComponent(value);
+    }
+  });
+  return cookies;
+};
+
+const jwt = require("jsonwebtoken");
+
+io.use((socket, next) => {
+  try {
+    const cookieHeader = socket.handshake.headers.cookie;
+    if (!cookieHeader) {
+      return next(new Error("Authentication error: No cookies found"));
+    }
+    const cookies = parseCookies(cookieHeader);
+    const token = cookies.authToken;
+    if (!token) {
+      return next(new Error("Authentication error: Token missing"));
+    }
+    const JWT_SECRET = process.env.JWT_SECRET;
+    const decoded = jwt.verify(token, JWT_SECRET);
+    socket.user = decoded;
+    next();
+  } catch (err) {
+    next(new Error("Authentication error: Invalid token"));
   }
-}
+});
 
 app.set("io", io);
 
@@ -52,6 +93,10 @@ io.on("connection", (socket) => {
   socket.on("authenticate", (userId) => {
     try {
       if (!userId || typeof userId !== "string") return;
+      if (socket.user && String(socket.user.sub) !== String(userId)) {
+        logger.warn(`[GrindLock] Authenticated socket tried to join private channel of user ${userId} but token belongs to ${socket.user.sub}. Blocked.`);
+        return socket.emit("error", { message: "Unauthorized private channel join attempt" });
+      }
       socket.join(userId);
       logger.info(`[GrindLock] User ${userId} joined private channel.`);
     } catch (err) {
@@ -61,6 +106,9 @@ io.on("connection", (socket) => {
 
   socket.on("join-room", async (data) => {
     try {
+      if (!socket.user) {
+        return socket.emit("error", { message: "Unauthorized socket" });
+      }
       const roomId = typeof data === "string" ? data : data?.roomId;
       if (!roomId || typeof roomId !== "string") {
         return socket.emit("error", { message: "Invalid Room ID" });
@@ -81,18 +129,21 @@ io.on("connection", (socket) => {
 
   socket.on("room-action", (data) => {
     try {
-    const { roomId, action, ...rest } = data || {};
-    if (!roomId || !action || typeof roomId !== "string" || typeof action !== "string") {
-      return;
-    }
+      if (!socket.user) {
+        return socket.emit("error", { message: "Unauthorized socket" });
+      }
+      const { roomId, action, ...rest } = data || {};
+      if (!roomId || !action || typeof roomId !== "string" || typeof action !== "string") {
+        return;
+      }
 
-    // Verify room membership before broadcasting
-    if (!socket.rooms.has(roomId)) {
-      logger.warn(`[GrindLock] Spoof attempt: Socket ${socket.id} tried to act in room ${roomId} without joining.`);
-      return;
-    }
+      // Verify room membership before broadcasting
+      if (!socket.rooms.has(roomId)) {
+        logger.warn(`[GrindLock] Spoof attempt: Socket ${socket.id} tried to act in room ${roomId} without joining.`);
+        return;
+      }
 
-    io.to(roomId).emit("room-action", { action, ...rest, userId: data.userId, timestamp: Date.now() });
+      io.to(roomId).emit("room-action", { action, ...rest, userId: data.userId, timestamp: Date.now() });
     } catch (err) {
       logger.error(`[GrindLock] Socket Action Error: ${err.message}`);
     }

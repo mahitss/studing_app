@@ -176,7 +176,7 @@ const TimerView: React.FC<TimerViewProps> = ({
             <AlertTriangle size={14} className="text-warning" /> Risk Protocol
           </h3>
           <p className="text-[10px] font-bold text-white/60 leading-relaxed italic">
-            "Neural focus is a limited resource. Do not attempt missions exceeding 90 minutes without a cooling phase."
+            &quot;Neural focus is a limited resource. Do not attempt missions exceeding 90 minutes without a cooling phase.&quot;
           </p>
         </div>
       </div>

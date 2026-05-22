@@ -61,7 +61,7 @@ export default function NeuralAnalytics({ data }: NeuralAnalyticsProps) {
                <Skeleton className="h-4 w-3/4" />
              </div>
            ) : (
-             <p className="text-sm font-bold italic leading-relaxed text-white">"{data.message || "Awaiting intelligence downlink..."}"</p>
+             <p className="text-sm font-bold italic leading-relaxed text-white">&quot;{data.message || "Awaiting intelligence downlink..."}&quot;</p>
            )}
         </div>
       </div>

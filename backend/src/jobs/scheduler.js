@@ -15,16 +15,27 @@ const runDailyChecks = async () => {
 
     for (const user of users) {
       try {
-        await gamificationService.ensureDailyChallenges(user._id);
-      } catch (err) {
-        logger.error(`[Scheduler] Seeding challenges failed for user ${user._id}: ${err.message}`);
-      }
+        try {
+          await gamificationService.ensureDailyChallenges(user._id);
+        } catch (err) {
+          logger.error(`[Scheduler] Seeding challenges failed for user ${user._id}: ${err.message}`);
+        }
 
-      if (user.streak.current > 0 && user.streak.lastActivityDate !== today && user.streak.lastActivityDate !== yesterdayStr) {
-        logger.info(`[Scheduler] Decaying streak for user ${user._id}. Last active was ${user.streak.lastActivityDate}`);
-        user.streak.current = 0;
-        user.pet.happiness = Math.max(10, user.pet.happiness - 40);
-        await user.save();
+        if (!user.streak) {
+          user.streak = { current: 0, longest: 0, lastActivityDate: "" };
+        }
+        if (!user.pet) {
+          user.pet = { name: "Neural-Bot", type: "robot", level: 1, happiness: 100 };
+        }
+
+        if (user.streak.current > 0 && user.streak.lastActivityDate !== today && user.streak.lastActivityDate !== yesterdayStr) {
+          logger.info(`[Scheduler] Decaying streak for user ${user._id}. Last active was ${user.streak.lastActivityDate}`);
+          user.streak.current = 0;
+          user.pet.happiness = Math.max(10, user.pet.happiness - 40);
+          await user.save();
+        }
+      } catch (err) {
+        logger.error(`[Scheduler] Daily checks failed for user ${user._id}: ${err.message}`);
       }
     }
 

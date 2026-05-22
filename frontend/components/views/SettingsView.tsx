@@ -195,7 +195,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-muted">
-              Motivation Core (The "Why")
+              Motivation Core (The &quot;Why&quot;)
             </label>
             <textarea
               className={`w-full bg-white/5 border-white/10 p-4 rounded-xl ${

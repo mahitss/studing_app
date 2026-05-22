@@ -20,6 +20,14 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3, // 3 requests per IP
+  message: { message: "Too many password reset attempts. Please try again in an hour." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const sanitizeUser = (userDoc) => {
   const user = typeof userDoc.toObject === "function" ? userDoc.toObject() : { ...userDoc };
   delete user.passwordHash;
@@ -316,7 +324,7 @@ router.post("/resend-verification", requireAuth, async (req, res, next) => {
 });
 
 // POST /auth/forgot-password - Request password reset
-router.post("/forgot-password", authLimiter, async (req, res, next) => {
+router.post("/forgot-password", passwordResetLimiter, async (req, res, next) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "Email is required" });
@@ -327,7 +335,8 @@ router.post("/forgot-password", authLimiter, async (req, res, next) => {
     }
 
     const token = crypto.randomBytes(20).toString("hex");
-    user.passwordResetToken = token;
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+    user.passwordResetToken = hashedToken;
     user.passwordResetExpires = Date.now() + 3600000;
     await user.save();
 
@@ -341,15 +350,16 @@ router.post("/forgot-password", authLimiter, async (req, res, next) => {
 });
 
 // POST /auth/reset-password - Perform password reset
-router.post("/reset-password", authLimiter, async (req, res, next) => {
+router.post("/reset-password", passwordResetLimiter, async (req, res, next) => {
   try {
     const { token, password } = req.body;
     if (!token || !password) {
       return res.status(400).json({ message: "Token and new password are required" });
     }
 
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
     const user = await User.findOne({
-      passwordResetToken: token,
+      passwordResetToken: hashedToken,
       passwordResetExpires: { $gt: Date.now() }
     });
 

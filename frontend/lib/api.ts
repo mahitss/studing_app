@@ -62,7 +62,9 @@ async function request<T>(path: string, init?: RequestInit, retries = 3): Promis
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || `API Error ${res.status}`);
+        const error = new Error(errorData.message || `API Error ${res.status}`);
+        (error as any).status = res.status;
+        throw error;
       }
 
       return res.json();
@@ -73,7 +75,9 @@ async function request<T>(path: string, init?: RequestInit, retries = 3): Promis
       // Intentionally aborted requests should NOT be retried. 
       // isTimeout is only true if OUR controller.abort() was called.
       
-      const isRetryableStatus = ![400, 401, 403, 404, 422].some(code => err.message.includes(code.toString()));
+      const isRetryableStatus = err.status
+        ? ![400, 401, 403, 404, 422].includes(err.status)
+        : true; // Network errors / timeouts are retryable
 
       if (attempt < retries && (isTimeout || isRetryableStatus)) {
         const delay = Math.pow(2, attempt) * 1000;

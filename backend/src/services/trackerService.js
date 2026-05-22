@@ -5,10 +5,7 @@ const Challenge = require("../models/Challenge");
 const gamificationService = require("./gamificationService");
 
 const todayKey = () => {
-  const d = new Date();
-  const offset = d.getTimezoneOffset();
-  const local = new Date(d.getTime() - (offset * 60 * 1000));
-  return local.toISOString().slice(0, 10);
+  return new Date().toISOString().slice(0, 10);
 };
 
 const levelFromXp = (xp) => Math.min(50, Math.floor((xp || 0) / 600) + 1);
@@ -674,6 +671,13 @@ const applyXpAndBadges = async (userId) => {
   const user = await User.findById(userId);
   if (!user) return null;
 
+  if (!user.streak) {
+    user.streak = { current: 0, longest: 0, lastActivityDate: "" };
+  }
+  if (!user.pet) {
+    user.pet = { name: "Neural-Bot", type: "robot", level: 1, happiness: 100 };
+  }
+
   const goals = await DailyGoal.find({ userId }).sort({ date: 1 });
   const sessions = await StudySession.find({ userId, status: "completed" }).sort({ startedAt: -1 }).limit(500);
   const streak = streakFromGoals(goals);
@@ -749,6 +753,7 @@ const dashboardForUser = async (userId) => {
     rewardBadge: c.rewardBadge
   }));
 
+  const energyPatternTracking = energyPattern(sessions.slice(0, 120));
   const aiCoach = coachSuggestions(sessions, deep, subjectStats.weakAlerts, streak, energyPatternTracking);
   const consistencyScore7d = weekly.weeklyCompletionPercent;
   const remainingMinutes = Math.max(0, (todayGoal?.targetMinutes || 0) - (todayGoal?.studiedMinutes || 0));
@@ -777,7 +782,6 @@ const dashboardForUser = async (userId) => {
   const futureYou = futureProjection(weekly.weeklyStudyHours, consistencyScore7d);
   const habitBuilder = habitBuilderPlan(streak, deep);
   const softLockMode = softLockData(todayGoal, user?.preferredStudyTime || "20:00");
-  const energyPatternTracking = energyPattern(sessions.slice(0, 120));
   const recovery = missedDayRecovery(goals, todayGoal);
   const effortResult = effortVsResult(goals);
   const weakDay = weakDayDetection(goals);

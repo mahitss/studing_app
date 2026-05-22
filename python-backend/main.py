@@ -1,6 +1,11 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional
+import json
+import os
+import traceback
+import threading
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
+from typing import List, Optional, Annotated
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,15 +15,48 @@ import base64
 
 from fastapi.middleware.cors import CORSMiddleware
 
+# Top-level guard for scikit-learn
+try:
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.preprocessing import LabelEncoder
+    SKLEARN_AVAILABLE = True
+except ImportError:
+    SKLEARN_AVAILABLE = False
+
+security = HTTPBearer()
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    expected_token = os.environ.get("JWT_SECRET")
+    if expected_token:
+        if token != expected_token:
+            raise HTTPException(status_code=401, detail="Unauthorized: invalid token")
+    else:
+        if token != "dev-local-secret-only":
+            raise HTTPException(status_code=401, detail="Unauthorized: invalid token")
+
+def coerce_object_id(v):
+    if isinstance(v, dict) and "$oid" in v:
+        return v["$oid"]
+    if isinstance(v, dict):
+        return str(v)
+    return str(v) if v is not None else ""
+
+ObjectIdStr = Annotated[str, BeforeValidator(coerce_object_id)]
+
 app = FastAPI(title="GrindLock Neural Analytics Engine")
 
-# Add CORS middleware
-ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5000",
-    "https://grindlock.vercel.app", # Placeholder for production frontend
-]
+# Add CORS middleware with env-based allowed origins
+ALLOWED_ORIGINS_ENV = os.environ.get("ALLOWED_ORIGINS")
+if ALLOWED_ORIGINS_ENV:
+    ALLOWED_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS_ENV.split(",") if origin.strip()]
+else:
+    ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5000",
+        "https://grindlock.vercel.app",
+    ]
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,10 +71,11 @@ class PauseItem(BaseModel):
     startedAt: str
     endedAt: Optional[str] = None
     reason: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="ignore")
 
 class StudySession(BaseModel):
-    id: str = Field(default="", alias="_id")
-    userId: str = ""
+    id: ObjectIdStr = Field(default="", alias="_id")
+    userId: ObjectIdStr = ""
     date: str = ""
     startedAt: str = ""
     endedAt: Optional[str] = None
@@ -49,11 +88,11 @@ class StudySession(BaseModel):
     studyMode: str = "custom"
     plannedDurationMinutes: float = 0
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="ignore")
 
 class AnalyticsRequest(BaseModel):
     sessions: List[StudySession]
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
 
 def create_base64_plot(fig):
     buf = io.BytesIO()
@@ -63,7 +102,7 @@ def create_base64_plot(fig):
     plt.close(fig)
     return img_base64
 
-@app.post("/analyze")
+@app.post("/analyze", dependencies=[Depends(verify_token)])
 def analyze_sessions(payload: AnalyticsRequest):
     sessions = payload.sessions
     if not sessions:
@@ -161,10 +200,8 @@ def analyze_sessions(payload: AnalyticsRequest):
 
     # 4. ML Predictions
     ml_insights = {}
-    if len(df) > 5:
+    if len(df) > 5 and SKLEARN_AVAILABLE:
         try:
-            from sklearn.ensemble import RandomForestRegressor
-            from sklearn.preprocessing import LabelEncoder
             import datetime
 
             le_day = LabelEncoder()
@@ -189,7 +226,7 @@ def analyze_sessions(payload: AnalyticsRequest):
         except Exception as e:
             ml_insights["prediction_text"] = "Gathering more data for AI predictions..."
     else:
-        ml_insights["prediction_text"] = "Need more than 5 sessions to unlock AI predictions."
+        ml_insights["prediction_text"] = "Gathering more data for AI predictions..." if not SKLEARN_AVAILABLE else "Need more than 5 sessions to unlock AI predictions."
 
     # 6. Burnout Detection Algorithm (Advanced Heuristics)
     burnout_risk = "Low"
@@ -237,7 +274,6 @@ def analyze_sessions(payload: AnalyticsRequest):
         plt.title("Knowledge Cluster Distribution", color='white')
         graphs["subject_distribution"] = create_base64_plot(plt.gcf())
     except Exception as e:
-        import traceback
         error_details = traceback.format_exc()
         print(f"Graph generation failed: {error_details}")
         graphs = {"error": f"Visualization engine offline: {str(e)}"}
@@ -259,62 +295,65 @@ def analyze_sessions(payload: AnalyticsRequest):
     }
 
 class MatchmakingRequest(BaseModel):
-    userId: str
+    userId: ObjectIdStr
     timezone: str
     studyMode: str
     targetMinutes: int
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
 
-import json
-import os
+# Absolute path to matchmaking pool
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+POOL_FILE = os.path.join(SCRIPT_DIR, "matchmaking_pool.json")
+pool_lock = threading.Lock()
 
-POOL_FILE = "matchmaking_pool.json"
-
-def load_pool():
-    if os.path.exists(POOL_FILE):
-        try:
-            with open(POOL_FILE, "r") as f:
-                return json.load(f)
-        except:
-            return []
-    return []
-
-def save_pool(pool):
-    with open(POOL_FILE, "w") as f:
-        json.dump(pool, f)
-
-@app.post("/matchmake")
+@app.post("/matchmake", dependencies=[Depends(verify_token)])
 def matchmake_users(req: MatchmakingRequest):
-    active_pool = load_pool()
-    # Simple algorithm: find someone in the pool with the same mode and similar target
-    best_match = None
-    for candidate in active_pool:
-        if candidate["userId"] != req.userId and candidate["studyMode"] == req.studyMode:
-            # Check target proximity (e.g., within 30 mins)
-            if abs(candidate["targetMinutes"] - req.targetMinutes) <= 30:
-                best_match = candidate
-                break
-    
-    if best_match:
-        # Match found! Remove candidate from pool
-        active_pool.remove(best_match)
-        save_pool(active_pool)
-        return {"matchFound": True, "partnerId": best_match["userId"], "message": "Optimal partner located."}
-    
-    # Add to pool
-    # Clean up old entries from the same user to avoid duplicates
-    active_pool = [u for u in active_pool if u["userId"] != req.userId]
-    active_pool.append({
-        "userId": req.userId,
-        "timezone": req.timezone,
-        "studyMode": req.studyMode,
-        "targetMinutes": req.targetMinutes
-    })
-    save_pool(active_pool)
-    return {"matchFound": False, "message": "Entering matchmaking pool. Awaiting optimal partner..."}
+    with pool_lock:
+        active_pool = []
+        if os.path.exists(POOL_FILE):
+            try:
+                with open(POOL_FILE, "r") as f:
+                    active_pool = json.load(f)
+            except:
+                active_pool = []
+        
+        best_match = None
+        for candidate in active_pool:
+            if candidate["userId"] != req.userId and candidate["studyMode"] == req.studyMode:
+                if abs(candidate["targetMinutes"] - req.targetMinutes) <= 30:
+                    best_match = candidate
+                    break
+        
+        if best_match:
+            active_pool.remove(best_match)
+            temp_file = POOL_FILE + ".tmp"
+            try:
+                with open(temp_file, "w") as f:
+                    json.dump(active_pool, f)
+                os.replace(temp_file, POOL_FILE)
+            except Exception as e:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+            return {"matchFound": True, "partnerId": best_match["userId"], "message": "Optimal partner located."}
+        
+        active_pool = [u for u in active_pool if u["userId"] != req.userId]
+        active_pool.append({
+            "userId": req.userId,
+            "timezone": req.timezone,
+            "studyMode": req.studyMode,
+            "targetMinutes": req.targetMinutes
+        })
+        temp_file = POOL_FILE + ".tmp"
+        try:
+            with open(temp_file, "w") as f:
+                json.dump(active_pool, f)
+            os.replace(temp_file, POOL_FILE)
+        except Exception as e:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+        return {"matchFound": False, "message": "Entering matchmaking pool. Awaiting optimal partner..."}
 
 if __name__ == "__main__":
     import uvicorn
-    import os
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)

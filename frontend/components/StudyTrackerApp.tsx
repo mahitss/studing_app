@@ -50,6 +50,8 @@ import { useSocketSync } from "../hooks/useSocketSync";
 import { useSessionManager } from "../hooks/useSessionManager";
 import NeuralCoach from "./ui/NeuralCoach";
 import NeuralAnalytics from "./ui/NeuralAnalytics";
+import { ErrorBoundary } from "react-error-boundary";
+import { ErrorFallback } from "./ui/ErrorFallback";
 import LiveStudyChamber from "./ui/LiveStudyChamber";
 import { 
   Chart as ChartJS, 
@@ -417,6 +419,29 @@ export default function StudyTrackerApp() {
   }, [settings]);
 
   useEffect(() => {
+    if (screen === "analytics" && user) {
+      const getTelemetry = async () => {
+        try {
+          setLoadingAnalytics(true);
+          const data = await fetchAnalytics(user._id);
+          setPythonAnalytics(data);
+          setAnalyticsLoaded(true);
+        } catch (err) {
+          console.error("Failed to load telemetry:", err);
+          setError("Failed to synchronize with neural analytics processor.");
+        } finally {
+          setLoadingAnalytics(false);
+        }
+      };
+      getTelemetry();
+    }
+  }, [screen, user]);
+
+  useEffect(() => {
+    setWalletConnected(!!user?.ethAddress);
+  }, [user?.ethAddress]);
+
+  useEffect(() => {
     const onInactive = () => {
       if (activeSession?.status === "running" && !hiddenAt.current) {
         hiddenAt.current = Date.now();
@@ -510,10 +535,27 @@ export default function StudyTrackerApp() {
         if (event.error === 'not-allowed') setIsListening(false);
       };
 
+      let restartCount = 0;
+      let lastRestart = Date.now();
+
       recognition.onend = () => {
         if (isListening) {
+          const now = Date.now();
+          if (now - lastRestart < 1000) {
+            restartCount++;
+          } else {
+            restartCount = 0;
+          }
+          lastRestart = now;
+
+          if (restartCount > 5) {
+            console.error("Speech recognition restarting too rapidly. Disabling listener.");
+            setIsListening(false);
+            setError("Speech recognition disconnected due to repeated errors.");
+            return;
+          }
+
           try {
-            // Check if still listening via ref to avoid stale closures
             recognition.start();
           } catch (e) {
             console.error("Speech restart failed:", e);
@@ -573,7 +615,7 @@ export default function StudyTrackerApp() {
       <Sidebar 
         user={user!} 
         dashboard={dashboard} 
-        activeScreen={screen as any} 
+        activeScreen={screen} 
         onScreenChange={(s) => { setScreen(s); setIsSidebarOpen(false); }} 
         onLogout={handleLogout} 
         isOpen={isSidebarOpen}
@@ -641,53 +683,71 @@ export default function StudyTrackerApp() {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           >
-            {screen === "dashboard" && <MemoizedDashboard user={user!} dashboard={dashboard} goalDaily={goalDaily} />}
-            {screen === "timer" && (
-              <MemoizedTimer 
-                activeSession={activeSession}
-                elapsed={elapsed}
-                plannedDuration={plannedDuration}
-                status={activeSession ? (activeSession.status === "paused" ? "paused" : "running") : "idle"}
-                onStart={handleStart}
-                onPause={handlePauseResume}
-                onResume={handlePauseResume}
-                onEnd={handleEnd}
-                formatHMS={formatHMS}
-                onSetDuration={(mins, mode) => {
-                  setPlannedDuration(mins);
-                  setStudyMode(mode);
-                }}
-              />
+            {screen === "dashboard" && (
+              <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => { setError(null); if (user) refreshAll(user._id); }}>
+                <MemoizedDashboard user={user!} dashboard={dashboard} goalDaily={goalDaily} />
+              </ErrorBoundary>
             )}
-            {screen === "analytics" && <NeuralAnalytics data={pythonAnalytics} />}
-            {screen === "streak" && <MemoizedStreak dashboard={dashboard} />}
+            {screen === "timer" && (
+              <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => { setError(null); if (user) refreshAll(user._id); }}>
+                <MemoizedTimer 
+                  activeSession={activeSession}
+                  elapsed={elapsed}
+                  plannedDuration={plannedDuration}
+                  status={activeSession ? (activeSession.status === "paused" ? "paused" : "running") : "idle"}
+                  onStart={handleStart}
+                  onPause={handlePauseResume}
+                  onResume={handlePauseResume}
+                  onEnd={handleEnd}
+                  formatHMS={formatHMS}
+                  onSetDuration={(mins, mode) => {
+                    setPlannedDuration(mins);
+                    setStudyMode(mode);
+                  }}
+                />
+              </ErrorBoundary>
+            )}
+            {screen === "analytics" && (
+              <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => { setError(null); if (user) refreshAll(user._id); }}>
+                <NeuralAnalytics data={pythonAnalytics} />
+              </ErrorBoundary>
+            )}
+            {screen === "streak" && (
+              <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => { setError(null); if (user) refreshAll(user._id); }}>
+                <MemoizedStreak dashboard={dashboard} />
+              </ErrorBoundary>
+            )}
             {screen === "colosseum" && (
-              <MemoizedColosseum 
-                rooms={rooms} 
-                currentRoom={currentRoom} 
-                onJoinRoom={handleJoinRoom} 
-                onCreateRoom={handleCreateRoom} 
-              />
+              <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => { setError(null); if (user) refreshAll(user._id); }}>
+                <MemoizedColosseum 
+                  rooms={rooms} 
+                  currentRoom={currentRoom} 
+                  onJoinRoom={handleJoinRoom} 
+                  onCreateRoom={handleCreateRoom} 
+                />
+              </ErrorBoundary>
             )}
             {screen === "settings" && (
-              <MemoizedSettings 
-                user={user!}
-                dashboard={dashboard}
-                goalDaily={goalDaily}
-                goalWeekly={goalWeekly}
-                identityType={identityType}
-                motivationWhy={motivationWhy}
-                summaryEmail={summaryEmail}
-                emailStatus={emailStatus}
-                setGoalDaily={setGoalDaily}
-                setGoalWeekly={setGoalWeekly}
-                setIdentityType={setIdentityType}
-                setMotivationWhy={setMotivationWhy}
-                setSummaryEmail={setSummaryEmail}
-                onGoalUpdate={handleGoalUpdate}
-                onIdentityUpdate={handleIdentityUpdate}
-                onSendEmail={handleSendEmail}
-              />
+              <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => { setError(null); if (user) refreshAll(user._id); }}>
+                <MemoizedSettings 
+                  user={user!}
+                  dashboard={dashboard}
+                  goalDaily={goalDaily}
+                  goalWeekly={goalWeekly}
+                  identityType={identityType}
+                  motivationWhy={motivationWhy}
+                  summaryEmail={summaryEmail}
+                  emailStatus={emailStatus}
+                  setGoalDaily={setGoalDaily}
+                  setGoalWeekly={setGoalWeekly}
+                  setIdentityType={setIdentityType}
+                  setMotivationWhy={setMotivationWhy}
+                  setSummaryEmail={setSummaryEmail}
+                  onGoalUpdate={handleGoalUpdate}
+                  onIdentityUpdate={handleIdentityUpdate}
+                  onSendEmail={handleSendEmail}
+                />
+              </ErrorBoundary>
             )}
           </motion.div>
         </AnimatePresence>

@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const User = require("../models/User");
 const Challenge = require("../models/Challenge");
 const StudySession = require("../models/StudySession");
@@ -14,9 +15,9 @@ const CURRENT_EVENT = {
 
 async function awardAchievement(userId, criteriaType, value) {
   try {
-    const achievements = await Achievement.find({ 
-      criteriaType, 
-      criteriaValue: { $lte: value } 
+    const achievements = await Achievement.find({
+      criteriaType,
+      criteriaValue: { $lte: value }
     });
     const user = await User.findById(userId);
     if (!user || !achievements.length) return;
@@ -42,7 +43,7 @@ async function awardAchievement(userId, criteriaType, value) {
 
 async function ensureDailyChallenges(userId) {
   const today = new Date().toISOString().slice(0, 10);
-  
+
   const dailyTasks = [
     {
       title: "Deep Focus Master",
@@ -75,34 +76,32 @@ async function ensureDailyChallenges(userId) {
 async function updateChallengeProgress(userId, type, value) {
   try {
     const challenges = await Challenge.find({ userId, isCompleted: false });
-    const user = await User.findById(userId);
-    if (!user) return;
+    if (!challenges || challenges.length === 0) return;
 
     for (const challenge of challenges) {
       if (challenge.type === type) {
         challenge.currentValue += value;
         if (challenge.currentValue >= challenge.targetValue) {
           challenge.isCompleted = true;
-          
+
           let rewardXp = challenge.rewardXp;
           if (CURRENT_EVENT.active && new Date() < CURRENT_EVENT.endDate) {
             rewardXp = Math.round(rewardXp * CURRENT_EVENT.multiplier);
           }
-          
-          user.xp += rewardXp;
+
+          const updateOps = { $inc: { xp: rewardXp } };
           if (challenge.rewardBadge) {
-            user.badges.push(challenge.rewardBadge);
+            updateOps.$addToSet = { badges: challenge.rewardBadge };
           }
-          await user.save();
+          await User.updateOne({ _id: userId }, updateOps);
           logger.info(`User ${userId} completed challenge: ${challenge.title}. Rewarded ${rewardXp} XP (Multiplier active: ${rewardXp > challenge.rewardXp}).`);
         }
         await challenge.save();
       }
     }
-    
-    // Check for total study time achievements
+
     const stats = await StudySession.aggregate([
-      { $match: { userId: user._id, status: "completed" } },
+      { $match: { userId: new mongoose.Types.ObjectId(userId), status: "completed" } },
       { $group: { _id: null, total: { $sum: "$focusedMinutes" } } }
     ]);
     if (stats.length) {
@@ -119,6 +118,13 @@ async function updateStreak(userId) {
   const user = await User.findById(userId);
   if (!user) return;
 
+  if (!user.streak) {
+    user.streak = { current: 0, longest: 0, lastActivityDate: "" };
+  }
+  if (!user.pet) {
+    user.pet = { name: "Neural-Bot", type: "robot", level: 1, happiness: 100 };
+  }
+
   if (user.streak.lastActivityDate === today) return;
 
   const yesterday = new Date();
@@ -129,7 +135,6 @@ async function updateStreak(userId) {
     user.streak.current += 1;
   } else {
     user.streak.current = 1;
-    // Streak lost! Pet becomes sad.
     user.pet.happiness = Math.max(10, user.pet.happiness - 40);
   }
 
@@ -139,13 +144,14 @@ async function updateStreak(userId) {
 
   user.streak.lastActivityDate = today;
   user.pet.happiness = Math.min(100, user.pet.happiness + 10);
-  
+
   await user.save();
-  
+
   await awardAchievement(userId, "streak", user.streak.current);
   await awardAchievement(userId, "pet_level", user.pet.level);
 
   logger.info(`Updated streak for user ${userId}: ${user.streak.current} days.`);
+
 }
 
 module.exports = {

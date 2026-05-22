@@ -1,19 +1,20 @@
 import React from "react";
 import { Zap, LogOut, LayoutDashboard, Timer, BarChart3, Flame, Swords, Settings } from "lucide-react";
 import { User, Dashboard } from "../../lib/types";
+import { Screen } from "../../lib/store";
 
 interface SidebarProps {
   user: User | null;
   dashboard: Dashboard | null;
-  activeScreen: string;
-  onScreenChange: (screen: string) => void;
+  activeScreen: Screen;
+  onScreenChange: (screen: Screen) => void;
   onLogout: () => void;
   isOpen?: boolean;
   onClose?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ user, dashboard, activeScreen, onScreenChange, onLogout, isOpen = false, onClose }) => {
-  const navItems = [
+  const navItems: { id: Screen; label: string; icon: any; hotkey: string }[] = [
     { id: "dashboard", label: "Neural Core", icon: LayoutDashboard, hotkey: "Alt+D" },
     { id: "timer", label: "Neural Sync", icon: Timer, hotkey: "Alt+T" },
     { id: "analytics", label: "Neural Map", icon: BarChart3, hotkey: "Alt+A" },

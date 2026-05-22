@@ -2,14 +2,16 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, Dashboard, StudySession, LiveFriend } from './types';
 
+export type Screen = "dashboard" | "timer" | "analytics" | "streak" | "colosseum" | "settings";
+
 interface AppStore {
   // Authentication & User
   user: User | null;
   setUser: (user: User | null) => void;
   
   // UI State
-  screen: string;
-  setScreen: (screen: string) => void;
+  screen: Screen;
+  setScreen: (screen: Screen) => void;
   isInitializing: boolean;
   setIsInitializing: (val: boolean) => void;
   isActionLoading: boolean;
@@ -105,6 +107,7 @@ export const useStore = create<AppStore>()(
     }),
     {
       name: 'grindlock-storage',
+      version: 1, // State migration versioning
       partialize: (state) => ({ 
         user: state.user, 
         screen: state.screen,
@@ -112,13 +115,7 @@ export const useStore = create<AppStore>()(
         studyMode: state.studyMode,
         plannedDuration: state.plannedDuration,
         riskMode: state.riskMode,
-        activeSession: state.activeSession,
-        sessions: state.sessions,
-        lastSyncAt: state.lastSyncAt,
-        liveFriends: state.liveFriends,
-        rooms: state.rooms,
-        duels: state.duels,
-        dashboard: state.dashboard
+        lastSyncAt: state.lastSyncAt
       }),
     }
   )

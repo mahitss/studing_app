@@ -14,17 +14,20 @@ const SessionSchema = z.object({
   _id: z.string(),
   status: z.enum(["running", "paused", "completed"]),
   startedAt: z.string(),
-  lastStartedAt: z.string().optional(),
+  lastStartedAt: z.string().nullish().transform(val => val ?? undefined),
+  endedAt: z.string().nullish().transform(val => val ?? undefined),
   elapsedSeconds: z.number().default(0),
   focusedMinutes: z.number().default(0),
   pauseCount: z.number().default(0),
   inactiveSeconds: z.number().default(0),
-  subject: z.string().default("General"),
-  studyMode: z.enum(["pomodoro", "deep", "custom"]).default("custom"),
-  plannedDurationMinutes: z.number().default(0),
-  riskMode: z.boolean().default(false),
+  subject: z.string().nullish().transform(val => val ?? undefined),
+  studyMode: z.enum(["pomodoro", "deep", "custom"]).nullish().transform(val => val ?? undefined),
+  plannedDurationMinutes: z.number().nullish().transform(val => val ?? undefined),
+  riskMode: z.boolean().nullish().transform(val => val ?? undefined),
+  notes: z.string().nullish().transform(val => val ?? undefined),
+  sessionQualityTag: z.enum(["deep", "average", "distracted", ""]).nullish().transform(val => val ?? undefined),
   pauses: z.array(z.any()).default([]),
-  date: z.string().default(() => new Date().toISOString().slice(0, 10))
+  date: z.preprocess((val) => val || new Date().toISOString().slice(0, 10), z.string())
 });
 
 export function useSessionManager() {
@@ -44,7 +47,28 @@ export function useSessionManager() {
 
   const [elapsed, setElapsed] = useState(0);
   const [inactiveSeconds, setInactiveSeconds] = useState(0);
-  const lastSyncAt = useRef(Date.now());
+
+  // Visibility Inactivity Tracking
+  useEffect(() => {
+    if (!activeSession || activeSession.status !== "running") return;
+
+    let hiddenStart = 0;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        hiddenStart = Date.now();
+      } else if (hiddenStart > 0) {
+        const hiddenDuration = Math.floor((Date.now() - hiddenStart) / 1000);
+        setInactiveSeconds((prev) => prev + Math.max(0, hiddenDuration));
+        hiddenStart = 0;
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [activeSession]);
 
   // Timer logic
   useEffect(() => {
@@ -58,7 +82,6 @@ export function useSessionManager() {
       if (activeSession.status === "running" && activeSession.lastStartedAt) {
         const startTime = new Date(activeSession.lastStartedAt).getTime();
         if (!isNaN(startTime)) {
-          // Use window.__grindlock_skew if available to correct for client/server clock drift
           const skew = (window as any).__grindlock_skew || 0;
           const delta = Math.floor((Date.now() - skew - startTime) / 1000);
           base += Math.max(0, delta);
@@ -79,7 +102,7 @@ export function useSessionManager() {
   }, [activeSession]);
 
   const handleStart = async () => {
-    if (!user) return;
+    if (!user?._id) return;
     try {
       setIsActionLoading(true);
       const modeMinutes = studyMode === "pomodoro" ? 25 : studyMode === "deep" ? 50 : plannedDuration;
@@ -88,7 +111,11 @@ export function useSessionManager() {
       const { session } = response;
       const validated = SessionSchema.parse(session);
       setActiveSession(validated);
-      localStorage.setItem("gl-active-session", JSON.stringify(validated));
+      try {
+        localStorage.setItem("gl-active-session", JSON.stringify(validated));
+      } catch (e) {
+        console.warn("localStorage operation failed", e);
+      }
     } catch (err: any) {
       setError(err.message || "Session initialization failed.");
     } finally {
@@ -97,7 +124,7 @@ export function useSessionManager() {
   };
 
   const handlePauseResume = async () => {
-    if (!user || !activeSession) return;
+    if (!user?._id || !activeSession) return;
     try {
       setIsActionLoading(true);
       if (activeSession.status === "running") {
@@ -105,11 +132,21 @@ export function useSessionManager() {
         if (!response || !response.session) throw new Error("Pause protocol failed.");
         const validated = SessionSchema.parse(response.session);
         setActiveSession(validated);
+        try {
+          localStorage.setItem("gl-active-session", JSON.stringify(validated));
+        } catch (e) {
+          console.warn("localStorage operation failed", e);
+        }
       } else {
         const response = await resumeSession(user._id, activeSession._id);
         if (!response || !response.session) throw new Error("Resume protocol failed.");
         const validated = SessionSchema.parse(response.session);
         setActiveSession(validated);
+        try {
+          localStorage.setItem("gl-active-session", JSON.stringify(validated));
+        } catch (e) {
+          console.warn("localStorage operation failed", e);
+        }
       }
     } catch (err: any) {
       setError(err.message || "Neural link interruption.");
@@ -119,31 +156,40 @@ export function useSessionManager() {
   };
 
   const handleEnd = async (notes = "", antiCheatFlags = 0) => {
-    if (!user || !activeSession) return;
+    if (!user?._id || !activeSession) return;
     try {
       setIsActionLoading(true);
-      const modeMinutes = studyMode === "pomodoro" ? 25 : studyMode === "deep" ? 50 : plannedDuration;
+      const sessionSubject = activeSession.subject || "General";
+      const sessionMode = activeSession.studyMode || "custom";
+      const sessionMinutes = activeSession.plannedDurationMinutes || 0;
+      const sessionRisk = !!activeSession.riskMode;
+
       const response = await endSession(
         user._id,
         activeSession._id,
         inactiveSeconds,
         notes,
-        subject,
+        sessionSubject,
         "manual",
         antiCheatFlags,
         "",
-        studyMode,
-        modeMinutes,
-        riskMode
+        sessionMode,
+        sessionMinutes,
+        sessionRisk
       );
       if (!response || !response.dashboard) throw new Error("End protocol synchronization failed.");
       const { dashboard: updated } = response;
       setDashboard(updated);
       setActiveSession(null);
-      localStorage.removeItem("gl-active-session");
+      try {
+        localStorage.removeItem("gl-active-session");
+      } catch (e) {
+        console.warn("localStorage operation failed", e);
+      }
       
       const { sessions: sessionList } = await getTodaySessions(user._id);
       setSessions(sessionList);
+      setInactiveSeconds(0);
     } catch (err: any) {
       setError(err.message || "Telemetry upload failed.");
     } finally {
