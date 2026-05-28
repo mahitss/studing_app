@@ -40,7 +40,7 @@ const signAccessToken = (user) =>
   jwt.sign(
     { sub: String(user._id) },
     JWT_SECRET,
-    { expiresIn: "15m" }
+    { expiresIn: "7d" }
   );
 
 const signRefreshToken = (user) =>
@@ -55,7 +55,7 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
-    maxAge: 15 * 60 * 1000 // 15 minutes
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   });
 
   res.cookie("refreshToken", refreshToken, {
