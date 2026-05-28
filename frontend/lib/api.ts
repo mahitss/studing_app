@@ -62,7 +62,13 @@ async function request<T>(path: string, init?: RequestInit, retries = 3): Promis
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        const errMsg = errorData.error?.message || errorData.message || `API Error ${res.status}`;
+        let errMsg = errorData.error?.message || errorData.message || `API Error ${res.status}`;
+        if (errorData.error?.details && Array.isArray(errorData.error.details)) {
+          const detailsStr = errorData.error.details.map((d: any) => d.message).join(", ");
+          if (detailsStr) {
+            errMsg = `${errMsg}: ${detailsStr}`;
+          }
+        }
         const error = new Error(errMsg);
         (error as any).status = res.status;
         throw error;
