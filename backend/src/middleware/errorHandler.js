@@ -8,6 +8,9 @@ const errorHandler = (err, req, res, next) => {
     statusCode = 500;
     code = "INTERNAL_SERVER_ERROR";
     message = "An unexpected error occurred on the neural node.";
+    if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
+      message = "Server misconfiguration: JWT_SECRET is missing in environment variables.";
+    }
     details = process.env.NODE_ENV === "production" ? null : { stack: err.stack, reason: err.message };
   }
 
