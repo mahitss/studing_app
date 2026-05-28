@@ -22,6 +22,9 @@ module.exports = {
         warning: "var(--warning)",
         success: "var(--success)",
       },
+      fontFamily: {
+        sans: ["var(--font-sans)", "sans-serif"],
+      },
       animation: {
         'gradient': 'gradient 8s linear infinite',
         'float': 'float 6s ease-in-out infinite',

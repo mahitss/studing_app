@@ -1,312 +1,251 @@
 "use client";
-import React, { useRef, useState, useMemo } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Environment, MeshTransmissionMaterial, Text, Float, Stars, Icosahedron, useScroll as useThreeScroll } from "@react-three/drei";
-import { motion as framerMotion, useScroll, useTransform, AnimatePresence } from "framer-motion";
-import { motion } from "framer-motion-3d";
-import * as THREE from "three";
+
+import React from "react";
 import { useRouter } from "next/navigation";
-import { Zap, Users, Activity, Shield, ArrowRight, Globe, MapPin, Award } from "lucide-react";
+import { motion } from "motion/react";
+import { 
+  Music2, 
+  Flame, 
+  Zap, 
+  Shield, 
+  Award, 
+  Activity, 
+  ArrowRight,
+  Sparkles,
+  Lock,
+  ChevronRight
+} from "lucide-react";
 
-const MotionGroup = motion.group as any;
-
-function Luxury3DButton({ position, label, onClick, width = 3 }: any) {
-  const [hovered, setHovered] = useState(false);
-  const [clicked, setClicked] = useState(false);
-  
-  return (
-    <MotionGroup 
-      position={position}
-      animate={{ z: clicked ? -0.4 : hovered ? 0.2 : 0, scale: hovered ? 1.05 : 1 }}
-      transition={{ type: "spring", stiffness: 400, damping: 25 }}
-    >
-      <mesh 
-        onPointerOver={() => setHovered(true)} 
-        onPointerOut={() => { setHovered(false); setClicked(false); }}
-        onPointerDown={() => setClicked(true)}
-        onPointerUp={() => { setClicked(false); if(hovered) onClick(); }}
-      >
-        <boxGeometry args={[width, 1.2, 0.4]} />
-        <MeshTransmissionMaterial 
-          backside={false}
-          resolution={256}
-          samples={2}
-          thickness={1.5}
-          roughness={0.2}
-          transmission={0.9}
-          ior={1.5}
-          color={hovered ? "#00F0FF" : "#1A1A1A"}
-        />
-      </mesh>
-      <Text 
-        position={[0, 0, 0.21]} 
-        fontSize={0.3} 
-        color={hovered ? "#00F0FF" : "white"} 
-        anchorX="center" 
-        anchorY="middle"
-        font="https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfMZhrib2Bg-4.ttf"
-      >
-        {label}
-      </Text>
-    </MotionGroup>
-  );
-}
-
-function DataOcean({ scrollYProgress }: { scrollYProgress: any }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const yOffset = useTransform(scrollYProgress, [0, 1], [0, -10]);
-  
-  const { geometry } = useMemo(() => {
-    const geo = new THREE.PlaneGeometry(100, 100, 40, 40);
-    geo.rotateX(-Math.PI / 2);
-    return { geometry: geo };
-  }, []);
-
-  useFrame((state) => {
-    if (meshRef.current) {
-      const positionAttribute = meshRef.current.geometry.attributes.position;
-      const vertex = new THREE.Vector3();
-      const time = state.clock.getElapsedTime();
-      
-      const mouseX = (state.pointer.x * 10);
-      const mouseY = (state.pointer.y * 10);
-
-      for (let i = 0; i < positionAttribute.count; i++) {
-        vertex.fromBufferAttribute(positionAttribute, i);
-        const dist = Math.sqrt(vertex.x * vertex.x + vertex.z * vertex.z);
-        let y = Math.sin(dist * 0.5 - time * 2) * 0.5;
-        const dx = vertex.x - mouseX;
-        const dz = vertex.z - mouseY;
-        const mouseDist = Math.sqrt(dx * dx + dz * dz);
-        if (mouseDist < 10) y += Math.sin(mouseDist * 2 - time * 5) * (10 - mouseDist) * 0.1;
-        positionAttribute.setY(i, y);
-      }
-      positionAttribute.needsUpdate = true;
-    }
-  });
-
-  return (
-    <mesh ref={meshRef} position={[0, -6, -20]}>
-      <primitive object={geometry} attach="geometry" />
-      <meshBasicMaterial color="#00F0FF" wireframe transparent opacity={0.1} />
-    </mesh>
-  );
-}
-
-function MasterAIAgent() {
-  const ref = useRef<THREE.Group>(null);
-  useFrame((state) => {
-    if (ref.current) {
-      ref.current.rotation.y += 0.005;
-      ref.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.5) * 0.2;
-    }
-  });
-  return (
-    <Float speed={2} floatIntensity={1} floatingRange={[-0.3, 0.3]}>
-      <group ref={ref} position={[0, 1.5, -2]}>
-        <Icosahedron args={[2, 0]}>
-          <meshStandardMaterial color="#050505" roughness={0.5} metalness={0.8} />
-        </Icosahedron>
-        <Icosahedron args={[2.02, 0]}>
-          <meshBasicMaterial color="#00F0FF" wireframe transparent opacity={0.5} />
-        </Icosahedron>
-        <pointLight color="#00F0FF" intensity={20} distance={10} />
-      </group>
-    </Float>
-  );
-}
-
-function GlobalHeatmap() {
-  return (
-    <div className="w-full h-80 glass-card relative overflow-hidden rounded-3xl border border-white/5">
-      <div className="absolute inset-0 bg-[#050505]/80 flex items-center justify-center">
-        <Globe size={160} className="text-accent/10 animate-spin-slow" />
-        <div className="absolute inset-0 flex items-center justify-center">
-           {[...Array(12)].map((_, i) => (
-             <framerMotion.div 
-               key={i}
-               initial={{ opacity: 0 }}
-               animate={{ opacity: [0.2, 1, 0.2] }}
-               transition={{ duration: 2, repeat: Infinity, delay: i * 0.5 }}
-               className="absolute w-2 h-2 bg-accent rounded-full shadow-[0_0_10px_#00F0FF]"
-               style={{ 
-                 top: `${20 + Math.random() * 60}%`, 
-                 left: `${20 + Math.random() * 60}%` 
-               }}
-             />
-           ))}
-        </div>
-      </div>
-      <div className="absolute bottom-6 left-6 text-left">
-        <p className="text-[10px] font-black uppercase tracking-widest text-accent mb-1">Live Global Pulse</p>
-        <p className="text-xs font-bold text-white/60">12,408 Operatives Online</p>
-      </div>
-    </div>
-  );
-}
-
-export default function LuxuryLandingPage() {
+export default function StudyTrackerLandingPage() {
   const router = useRouter();
-  const [darkMode, setDarkMode] = useState(true);
-  const { scrollYProgress } = useScroll();
-  const yParallax = useTransform(scrollYProgress, [0, 1], [0, -300]);
-  const scaleParallax = useTransform(scrollYProgress, [0, 0.5], [1, 1.1]);
-  const opacityHero = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
 
   return (
-    <div className={`w-full min-h-screen ${darkMode ? "bg-[#050505] text-white" : "bg-gray-100 text-[#050505]"} overflow-x-hidden relative selection:bg-[#00F0FF] selection:text-[#050505] font-sans transition-colors duration-500`}>
-      
-      <div className="w-full h-screen relative sticky top-0 overflow-hidden">
-        {/* Background Visuals */}
-        <framerMotion.div style={{ scale: scaleParallax }} className="absolute inset-0">
-          <img src="/study_session_bg_1777405178295.png" className="w-full h-full object-cover opacity-30 grayscale contrast-125" alt="Neural Background" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]/80" />
-        </framerMotion.div>
+    <main className="relative w-full min-h-[115vh] overflow-x-hidden flex flex-col items-center font-sans selection:bg-white/20 selection:text-white">
+      {/* Background Video */}
+      <video 
+        autoPlay 
+        loop 
+        muted 
+        playsInline
+        className="fixed inset-0 w-full h-full object-cover z-[0]"
+      >
+        <source 
+          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260429_114316_1c7889ad-2885-410e-b493-98119fee0ddb.mp4" 
+          type="video/mp4" 
+        />
+      </video>
 
-        {/* Dynamic HTML Hero Overlay */}
-        <framerMotion.div style={{ opacity: opacityHero, y: yParallax }} className="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between">
-          {/* Navbar */}
-          <div className="w-full p-8 md:px-16 flex justify-between items-center animate-fade-in pointer-events-auto">
-            <h1 className="text-2xl md:text-3xl font-black tracking-widest uppercase flex items-center gap-2">
-              GrindLock<span className="text-[#00F0FF] animate-pulse shadow-[0_0_10px_#00F0FF]">.</span>
-            </h1>
-            <div className="hidden md:flex items-center gap-6">
-              <button 
-                onClick={() => setDarkMode(!darkMode)}
-                className="px-4 py-1.5 rounded-full border border-white/20 text-xs font-bold hover:bg-white/10 transition-all"
-              >
-                {darkMode ? "LIGHT MODE" : "DARK MODE"}
-              </button>
-              <button onClick={() => router.push("/signin")} className="text-xs font-black tracking-widest hover:text-accent transition-colors">LOGIN</button>
-              <button onClick={() => router.push("/signup")} className="bg-accent text-black px-6 py-2 rounded-full text-xs font-black tracking-widest hover:scale-105 transition-all">INITIALIZE</button>
-            </div>
-          </div>
+      {/* Video Overlay for better readability */}
+      <div className="fixed inset-0 bg-black/60 z-[1] pointer-events-none" />
 
-          {/* Center Hero Text */}
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-4 -mt-24">
-            <framerMotion.div className="space-y-6 max-w-4xl">
-              <div className="inline-block border border-accent/40 bg-accent/5 backdrop-blur-md px-6 py-2 rounded-full mb-4">
-                <span className="text-[#00F0FF] text-[10px] font-black tracking-[0.4em] uppercase">Neural Performance Infrastructure</span>
-              </div>
-              <h2 className="text-6xl md:text-8xl font-black tracking-tighter uppercase leading-[0.85] filter drop-shadow-2xl">
-                Master Your Focus.<br/>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-white/50 to-accent">Hack Your Potential.</span>
-              </h2>
-              <p className="text-white/40 tracking-[0.2em] uppercase text-xs md:text-sm font-bold max-w-2xl mx-auto leading-relaxed mt-8">
-                A high-fidelity productivity architecture designed for absolute discipline. Permanent neural rewiring via synchronized collaborative deep-work.
-              </p>
-            </framerMotion.div>
-          </div>
-
-          {/* Bottom Indicators */}
-          <div className="w-full p-8 md:px-16 flex justify-center pb-12 animate-bounce">
-            <div className="w-1 h-12 rounded-full bg-gradient-to-b from-accent to-transparent opacity-50" />
-          </div>
-        </framerMotion.div>
-
-        {/* 3D Core */}
-        <div className="absolute inset-0 pointer-events-none opacity-40">
-           <Canvas camera={{ position: [0, 1, 10], fov: 45 }}>
-            <Environment preset="city" />
-            <ambientLight intensity={0.5} />
-            <directionalLight position={[10, 10, 5]} intensity={1.5} color="#00F0FF" />
-            <DataOcean scrollYProgress={scrollYProgress} />
-            <Stars radius={100} depth={50} count={2000} factor={4} saturation={0} fade speed={1} />
-            <MasterAIAgent />
-          </Canvas>
-        </div>
-      </div>
-
-      {/* Main Content Sections */}
-      <div className="relative z-20 bg-[#050505] pt-32 pb-60 space-y-60">
+      {/* Content Wrapper */}
+      <div className="relative z-10 w-full max-w-7xl px-6 md:px-12 flex flex-col items-center flex-1">
         
-        {/* Collaborative Feature Grid */}
-        <section className="container mx-auto px-8">
-          <div className="text-center mb-32">
-             <h3 className="text-xs font-black tracking-[0.5em] text-accent uppercase mb-4">Core Protocols</h3>
-             <h4 className="text-4xl md:text-6xl font-black uppercase tracking-tighter">Collaborative Infrastructure</h4>
+        {/* Navigation Bar */}
+        <header className="w-full py-8 flex justify-between items-center border-b border-white/10 mb-16">
+          <div className="flex items-center gap-3">
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="28" 
+              height="28" 
+              viewBox="0 0 256 256" 
+              fill="currentColor" 
+              className="text-white"
+            >
+              <path d="M 4.688 136 C 68.373 136 120 187.627 120 251.312 C 120 252.883 119.967 254.445 119.905 256 L 0 256 L 0 136.096 C 1.555 136.034 3.117 136 4.688 136 Z M 251.312 136 C 252.883 136 254.445 136.034 256 136.096 L 256 256 L 136.095 256 C 136.032 254.438 136.001 252.875 136 251.312 C 136 187.627 187.627 136 251.312 136 Z M 119.905 0 C 119.967 1.555 120 3.117 120 4.688 C 120 68.373 68.373 120 4.687 120 C 3.117 120 1.555 119.967 0 119.905 L 0 0 Z M 256 119.905 C 254.445 119.967 252.883 120 251.312 120 C 187.627 120 136 68.373 136 4.687 C 136 3.117 136.033 1.555 136.095 0 L 256 0 Z" />
+            </svg>
+            <span className="text-xl font-bold tracking-widest text-white uppercase">GRINDLOCK</span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-            {[
-              { title: 'Apex Arena', icon: <Award className="text-accent" />, desc: 'One-on-one study duels with real-time XP stakes and leaderboard ascension.' },
-              { title: 'Neural Chambers', icon: <Users className="text-accent" />, desc: 'Synchronized study clusters with shared notes and group ambient syncing.' },
-              { title: 'AI Strategist', icon: <Activity className="text-accent" />, desc: 'Neural-linked coaching that detects cognitive fatigue and optimizes intervals.' },
-              { title: 'Global Sync', icon: <Globe className="text-accent" />, desc: 'Ultra-low latency progress broadcasting across the global neural grid.' },
-              { title: 'Anti-Cheat', icon: <Shield className="text-accent" />, desc: 'Advanced biometric-ready focus validation to ensure absolute integrity.' },
-              { title: 'XP Betting', icon: <Zap className="text-accent" />, desc: 'High-stakes gamification. Risk your reputation on collective victory.' },
-            ].map((f, i) => (
-              <framerMotion.div 
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="group p-10 glass-card hover:bg-white/5 transition-all cursor-pointer border border-white/5 hover:border-accent/30"
+          <nav className="flex items-center gap-6">
+            <button 
+              onClick={() => router.push("/signin")} 
+              className="text-sm font-semibold tracking-wider text-white/80 hover:text-white transition-colors"
+            >
+              LOGIN
+            </button>
+            <button 
+              onClick={() => router.push("/signup")} 
+              className="bg-white text-black px-6 py-2.5 rounded-full text-xs font-bold tracking-wider hover:bg-white/90 transition-all hover:scale-105"
+            >
+              INITIALIZE
+            </button>
+          </nav>
+        </header>
+
+        {/* Upper CTA / Hero Section */}
+        <section className="flex-1 flex flex-col items-center justify-center text-center max-w-4xl py-12 md:py-24">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="space-y-6"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/20 bg-white/5 backdrop-blur-md">
+              <Sparkles size={12} className="text-white/80" />
+              <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/90">DEEP FOCUS INFRASTRUCTURE</span>
+            </div>
+            
+            <h1 className="text-5xl md:text-8xl font-extrabold tracking-tighter text-white leading-[1.05] uppercase">
+              Master Your Focus.<br/>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-white/70 to-white/40">
+                Hack Your Potential.
+              </span>
+            </h1>
+            
+            <p className="text-white/60 text-base md:text-lg max-w-2xl mx-auto leading-relaxed font-light">
+              A high-fidelity discipline-first study tracker designed for absolute accountability. Wire your brain for deep work with synchronized collaborative rooms, real-time streaks, and brutal analytics.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
+              <button 
+                onClick={() => router.push("/signup")}
+                className="w-full sm:w-auto px-8 py-4 bg-white text-black text-sm font-bold uppercase tracking-wider rounded-full hover:bg-white/90 hover:scale-105 transition-all shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2"
               >
-                <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-accent/20 transition-all">
-                  {f.icon}
+                Start My Journey <ChevronRight size={16} />
+              </button>
+              <button 
+                onClick={() => router.push("/signin")}
+                className="w-full sm:w-auto px-8 py-4 border border-white/20 bg-white/5 backdrop-blur-md text-white text-sm font-bold uppercase tracking-wider rounded-full hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+              >
+                Access Dashboard
+              </button>
+            </div>
+          </motion.div>
+
+          {/* Feature Highlight Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mt-24 text-left">
+            {[
+              {
+                icon: <Flame className="text-white" size={24} />,
+                title: "Streak Engine",
+                desc: "Strict reset-on-miss tracking. Build momentum or slip and lose it all. No excuses."
+              },
+              {
+                icon: <Activity className="text-white" size={24} />,
+                title: "Reality Reports",
+                desc: "Deep visual analytics tracking focused minutes, wasted hours, and focus quality indices."
+              },
+              {
+                icon: <Shield className="text-white" size={24} />,
+                title: "Anti-Cheat Audit",
+                desc: "Integrated tab-switch detection and idle warning thresholds to safeguard focus integrity."
+              }
+            ].map((feature, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.2 + idx * 0.1, ease: "easeOut" }}
+                className="p-8 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md hover:border-white/25 transition-all group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                  {feature.icon}
                 </div>
-                <h4 className="text-2xl font-black uppercase mb-4">{f.title}</h4>
-                <p className="text-sm text-white/50 leading-relaxed">{f.desc}</p>
-                <ArrowRight className="mt-8 text-accent opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all" size={20} />
-              </framerMotion.div>
+                <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">{feature.title}</h3>
+                <p className="text-sm text-white/60 leading-relaxed">{feature.desc}</p>
+              </motion.div>
             ))}
           </div>
         </section>
 
-        {/* Real-time Heatmap Section */}
-        <section className="container mx-auto px-8 text-center space-y-16">
-           <div className="max-w-4xl mx-auto space-y-8">
-              <h3 className="text-5xl md:text-7xl font-black uppercase tracking-tighter">The Neural Grid is Live</h3>
-              <p className="text-white/40 font-bold uppercase tracking-widest text-sm">Real-time operative density across 142 sectors.</p>
-           </div>
-           <GlobalHeatmap />
-        </section>
+        {/* Footer */}
+        <motion.footer 
+          initial={{ opacity: 0, y: 40 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ duration: 1, delay: 0.4, ease: "easeOut" }}
+          className="liquid-glass w-full rounded-3xl p-6 md:p-10 text-white/70 mt-32 md:mt-64 mb-12"
+        >
+          {/* Footer Top Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12 mb-10">
+            {/* Brand Column */}
+            <div className="md:col-span-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="24" 
+                  height="24" 
+                  viewBox="0 0 256 256" 
+                  fill="currentColor" 
+                  className="text-white"
+                >
+                  <path d="M 4.688 136 C 68.373 136 120 187.627 120 251.312 C 120 252.883 119.967 254.445 119.905 256 L 0 256 L 0 136.096 C 1.555 136.034 3.117 136 4.688 136 Z M 251.312 136 C 252.883 136 254.445 136.034 256 136.096 L 256 256 L 136.095 256 C 136.032 254.438 136.001 252.875 136 251.312 C 136 187.627 187.627 136 251.312 136 Z M 119.905 0 C 119.967 1.555 120 3.117 120 4.688 C 120 68.373 68.373 120 4.687 120 C 3.117 120 1.555 119.967 0 119.905 L 0 0 Z M 256 119.905 C 254.445 119.967 252.883 120 251.312 120 C 187.627 120 136 68.373 136 4.687 C 136 3.117 136.033 1.555 136.095 0 L 256 0 Z" />
+                </svg>
+                <span className="text-xl font-medium text-white uppercase tracking-wider">GRINDLOCK</span>
+              </div>
+              <p className="text-sm leading-relaxed max-w-sm">
+                GrindLock provides premium clarity on academic milestones and discipline limits - shared with focus-oriented students for free.
+              </p>
+            </div>
 
-        {/* Final CTA */}
-        <section className="container mx-auto px-8 py-40 bg-accent/5 rounded-[4rem] border border-accent/10 relative overflow-hidden text-center">
-           <div className="absolute inset-0 opacity-10 pointer-events-none">
-              <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-accent/40 via-transparent to-transparent" />
-           </div>
-           <h3 className="text-6xl md:text-8xl font-black uppercase tracking-tighter mb-12">Rewrite Your Discipline.</h3>
-           <div className="flex flex-col md:flex-row gap-6 justify-center items-center">
-              <button onClick={() => router.push("/signup")} className="px-12 py-6 bg-accent text-black text-lg font-black uppercase tracking-[0.2em] rounded-2xl hover:scale-105 transition-all shadow-[0_0_50px_rgba(0,240,255,0.3)]">INITIALIZE SESSION</button>
-              <button onClick={() => router.push("/signin")} className="px-12 py-6 glass text-lg font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-white/10 transition-all">ACCESS DATA CORE</button>
-           </div>
-        </section>
+            {/* Links Columns */}
+            <div className="md:col-span-7 grid grid-cols-3 gap-6">
+              {/* Discover Column */}
+              <div>
+                <h4 className="text-sm uppercase tracking-wider text-white font-medium mb-4">Discover</h4>
+                <ul className="text-xs space-y-2">
+                  {["Labs & Workshops", "Deep Dive Series", "Global Circle", "Resource Vault", "Future Roadmap"].map((item, index) => (
+                    <li key={index}>
+                      <a href="#" className="hover:text-white transition-colors">{item}</a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* The Mission Column */}
+              <div>
+                <h4 className="text-sm uppercase tracking-wider text-white font-medium mb-4">The Mission</h4>
+                <ul className="text-xs space-y-2">
+                  {["Origin Story", "The Collective", "Newsroom Hub", "Join the Team"].map((item, index) => (
+                    <li key={index}>
+                      <a href="#" className="hover:text-white transition-colors">{item}</a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Concierge Column */}
+              <div>
+                <h4 className="text-sm uppercase tracking-wider text-white font-medium mb-4">Concierge</h4>
+                <ul className="text-xs space-y-2">
+                  {["Get in Touch", "Legal Privacy", "User Agreement", "Report Concern"].map((item, index) => (
+                    <li key={index}>
+                      <a href="#" className="hover:text-white transition-colors">{item}</a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="pt-6 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest opacity-50">Curated by @GotInGeorgiG</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-[10px] uppercase tracking-widest opacity-50">Join the Journey:</span>
+              <div className="flex items-center gap-3">
+                <a href="#" className="opacity-70 hover:opacity-100 transition-colors hover:text-white text-white/80">
+                  <Music2 size={16} />
+                </a>
+                <a href="#" className="opacity-70 hover:opacity-100 transition-colors hover:text-white text-white/80" aria-label="Facebook">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                </a>
+                <a href="#" className="opacity-70 hover:opacity-100 transition-colors hover:text-white text-white/80" aria-label="Twitter">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>
+                </a>
+                <a href="#" className="opacity-70 hover:opacity-100 transition-colors hover:text-white text-white/80" aria-label="Youtube">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/></svg>
+                </a>
+                <a href="#" className="opacity-70 hover:opacity-100 transition-colors hover:text-white text-white/80" aria-label="Instagram">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                </a>
+              </div>
+            </div>
+          </div>
+        </motion.footer>
 
       </div>
-
-      {/* Footer */}
-      <footer className="bg-[#050505] border-t border-white/5 py-24">
-        <div className="container mx-auto px-8 grid grid-cols-1 md:grid-cols-4 gap-16 mb-24">
-           <div className="col-span-2">
-              <h2 className="text-3xl font-black tracking-widest uppercase mb-8">GrindLock<span className="text-accent">.</span></h2>
-              <p className="text-sm text-white/40 max-w-sm leading-relaxed font-bold uppercase tracking-wider">The premier operating system for extreme focus. Built by operatives, for operatives. Absolute efficiency is the only standard.</p>
-           </div>
-           <div>
-              <h5 className="text-[10px] font-black uppercase tracking-[0.3em] text-accent mb-6">Protocols</h5>
-              <ul className="space-y-4 text-xs font-bold uppercase tracking-widest text-white/60">
-                 <li className="hover:text-accent transition-colors cursor-pointer">Deep Work</li>
-                 <li className="hover:text-accent transition-colors cursor-pointer">Neural Link</li>
-                 <li className="hover:text-accent transition-colors cursor-pointer">Apex Arena</li>
-              </ul>
-           </div>
-           <div>
-              <h5 className="text-[10px] font-black uppercase tracking-[0.3em] text-accent mb-6">Liaison</h5>
-              <ul className="space-y-4 text-xs font-bold uppercase tracking-widest text-white/60">
-                 <li className="hover:text-accent transition-colors cursor-pointer">Support</li>
-                 <li className="hover:text-accent transition-colors cursor-pointer">Terms</li>
-                 <li className="hover:text-accent transition-colors cursor-pointer">Privacy</li>
-              </ul>
-           </div>
-        </div>
-        <div className="container mx-auto px-8 flex flex-col md:flex-row justify-between items-center text-[10px] font-black uppercase tracking-[0.5em] text-white/20">
-           <p>© 2026 GRINDLOCK NEURAL INFRASTRUCTURE</p>
-           <p className="mt-4 md:mt-0">SECURE TRANSMISSION ENCRYPTED</p>
-        </div>
-      </footer>
-
-    </div>
+    </main>
   );
 }
