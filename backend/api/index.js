@@ -27,6 +27,10 @@ module.exports = async (req, res) => {
     return app(req, res);
   } catch (err) {
     console.error("[Neural Crash]", err);
+    res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Cookie");
     res.status(500).json({
       error: "Neural link initialization failed",
       message: err.message,

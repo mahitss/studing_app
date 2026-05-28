@@ -28,6 +28,11 @@ const connectDB = async () => {
     return mongoose.connection;
   } catch (err) {
     console.warn(`⚠️ MongoDB connection failed: ${err.message}`);
+    if (process.env.NODE_ENV === "production" || process.env.VERCEL === "1") {
+      console.error(`❌ MongoDB connection failed in production: ${err.message}`);
+      cachedConnection = null;
+      throw err;
+    }
     console.log("🚀 Attempting to spin up in-memory MongoDB fallback...");
     try {
       const { MongoMemoryServer } = require("mongodb-memory-server");
