@@ -1,5 +1,14 @@
 // Minimal diagnostic route that bypasses all requirements
 module.exports = async (req, res) => {
+  // Handle preflight requests instantly to avoid CORS blocks on initialization errors
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Cookie");
+    return res.status(200).end();
+  }
+
   const url = req.url || "";
   if (url.includes("neural-diagnostic")) {
     return res.status(200).json({ 
