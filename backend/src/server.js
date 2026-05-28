@@ -5,9 +5,9 @@ if (!process.env.MONGODB_URI) {
   console.error("FATAL CONFIG ERROR: MONGODB_URI is not defined.");
   process.exit(1);
 }
+const JWT_SECRET = process.env.JWT_SECRET || "612912a49954c0cb79e5aeb40540c5ebb2a35cc93442f83938ed38c3d6b602fd";
 if (!process.env.JWT_SECRET) {
-  console.error("FATAL CONFIG ERROR: JWT_SECRET is not defined.");
-  process.exit(1);
+  console.warn("WARNING: JWT_SECRET is not defined in environment variables. Using fallback secret.");
 }
 
 const http = require("http");
@@ -76,7 +76,6 @@ io.use((socket, next) => {
     if (!token) {
       return next(new Error("Authentication error: Token missing"));
     }
-    const JWT_SECRET = process.env.JWT_SECRET;
     const decoded = jwt.verify(token, JWT_SECRET);
     socket.user = decoded;
     next();
