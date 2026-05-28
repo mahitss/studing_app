@@ -62,7 +62,8 @@ async function request<T>(path: string, init?: RequestInit, retries = 3): Promis
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        const error = new Error(errorData.message || `API Error ${res.status}`);
+        const errMsg = errorData.error?.message || errorData.message || `API Error ${res.status}`;
+        const error = new Error(errMsg);
         (error as any).status = res.status;
         throw error;
       }
