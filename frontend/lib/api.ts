@@ -11,7 +11,7 @@ export const HAS_BACKEND =
   localStorage.getItem("study-tracker-pref-mock") !== "true" && 
   (process.env.NEXT_PUBLIC_DEMO_MODE !== "true");
 
-const API_BASE_RAW = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "development" ? "http://localhost:5000/api" : "");
+const API_BASE_RAW = (process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "development" ? "http://localhost:5000/api" : "")).trim();
 const API_BASE = API_BASE_RAW.replace(/\/+$/, "");
 const SOCKET_URL = API_BASE ? API_BASE.replace(/\/api$/, "") : "";
 
