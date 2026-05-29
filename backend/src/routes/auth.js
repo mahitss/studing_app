@@ -102,7 +102,9 @@ router.post("/login", authLimiter, validate(loginSchema), async (req, res, next)
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    const isMatch = (user.passwordHash && typeof user.passwordHash === "string")
+      ? await bcrypt.compare(password, user.passwordHash)
+      : false;
     if (!isMatch) {
       await logAction({ userId: user._id, action: "AUTH_LOGIN_FAILED", req, status: "failed", details: { email } });
       return res.status(401).json({ message: "Invalid credentials" });
