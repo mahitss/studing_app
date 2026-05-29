@@ -465,5 +465,83 @@ export async function mockRequest<T>(path: string, init?: RequestInit): Promise<
     return { ok: true, message: "Progress email successfully simulated via Mock API.", summary: { totalHours: 12.5, weeklyHours: 5.2, completionRate: 85 } } as T;
   }
 
+  if (path === "/rooms" && method === "GET") {
+    return [
+      { _id: "room-1", name: "Neural Sync Deep Work", activeSubject: "Computer Science", members: [], ownerId: { _id: "owner-1", name: "Agent Alpha" } }
+    ] as T;
+  }
+
+  if (path === "/rooms" && method === "POST") {
+    return {
+      _id: `room-${Date.now()}`,
+      name: body.name || "Custom Chamber",
+      activeSubject: body.activeSubject || "General",
+      members: [body.ownerId],
+      ownerId: store.user || { _id: body.ownerId, name: "Agent" }
+    } as T;
+  }
+
+  const joinRoomMatch = path.match(/^\/rooms\/([^/]+)\/join$/);
+  if (joinRoomMatch && method === "POST") {
+    return { ok: true } as T;
+  }
+
+  const roomNotesMatch = path.match(/^\/rooms\/([^/]+)\/notes$/);
+  if (roomNotesMatch && method === "POST") {
+    return { ok: true } as T;
+  }
+
+  const roomVoteMatch = path.match(/^\/rooms\/([^/]+)\/vote-ambient$/);
+  if (roomVoteMatch && method === "POST") {
+    return { ok: true } as T;
+  }
+
+  const roomAlertMatch = path.match(/^\/rooms\/([^/]+)\/alert$/);
+  if (roomAlertMatch && method === "POST") {
+    return { ok: true } as T;
+  }
+
+  const roomQaMatch = path.match(/^\/rooms\/([^/]+)\/ai-qa$/);
+  if (roomQaMatch && method === "POST") {
+    return { reply: "Maintain your current target." } as T;
+  }
+
+  const roomBetMatch = path.match(/^\/rooms\/([^/]+)\/bet$/);
+  if (roomBetMatch && method === "POST") {
+    return { ok: true } as T;
+  }
+
+  if (path === "/duels" && method === "POST") {
+    return {
+      _id: `duel-${Date.now()}`,
+      challengerId: body.challengerId,
+      opponentId: body.opponentId,
+      durationMinutes: body.durationMinutes,
+      challengerProgress: 0,
+      opponentProgress: 0,
+      status: "pending"
+    } as T;
+  }
+
+  const duelsMatch = path.match(/^\/duels\/([^/]+)$/);
+  if (duelsMatch && method === "GET") {
+    return [
+      {
+        _id: "duel-1",
+        challengerId: duelsMatch[1],
+        opponentId: "friend-1",
+        durationMinutes: 60,
+        challengerProgress: 15,
+        opponentProgress: 20,
+        status: "active"
+      }
+    ] as T;
+  }
+
+  const duelSyncMatch = path.match(/^\/duels\/([^/]+)\/sync$/);
+  if (duelSyncMatch && method === "POST") {
+    return { ok: true } as T;
+  }
+
   return {} as T;
 }

@@ -302,6 +302,18 @@ router.get("/:userId/analytics", requireAuth, requireSelf, async (req, res, next
       };
 
       const proxyReq = http.request(options, (proxyRes) => {
+        if (proxyRes.statusCode !== 200) {
+          trackerService.dashboardForUser(userId).then(dashboard => {
+            res.json({
+              average_study_time: dashboard.deepAnalytics.averageSessionLength,
+              focus_score: dashboard.focusScore.score,
+              message: "Python engine offline. Basic analytics active.",
+              graphs: {}
+            });
+          });
+          return;
+        }
+
         let data = '';
         proxyRes.on('data', (chunk) => { data += chunk; });
         proxyRes.on('end', () => {

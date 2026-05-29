@@ -1,5 +1,6 @@
 const express = require("express");
 const StudyRoom = require("../models/StudyRoom");
+const User = require("../models/User");
 const { requireAuth } = require("../middleware/auth");
 const router = express.Router();
 
@@ -65,6 +66,101 @@ router.post("/:roomId/join", requireAuth, async (req, res, next) => {
     );
     if (!room) return res.status(404).json({ message: "Room not found" });
     res.json(room);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/:roomId/notes", requireAuth, async (req, res, next) => {
+  try {
+    const { notes } = req.body;
+    const room = await StudyRoom.findByIdAndUpdate(
+      req.params.roomId,
+      { sharedNotes: notes || "" },
+      { new: true }
+    );
+    if (!room) return res.status(404).json({ message: "Room not found" });
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(req.params.roomId).emit("notes-updated", { userId: req.auth.sub, notes });
+    }
+    res.json({ ok: true, notes: room.sharedNotes });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/:roomId/vote-ambient", requireAuth, async (req, res, next) => {
+  try {
+    const { trackId } = req.body;
+    const room = await StudyRoom.findById(req.params.roomId);
+    if (!room) return res.status(404).json({ message: "Room not found" });
+
+    room.ambientSettings = {
+      ...room.ambientSettings,
+      track: trackId
+    };
+    await room.save();
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(req.params.roomId).emit("ambient-changed", { track: trackId });
+    }
+    res.json({ ok: true, track: trackId });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/:roomId/alert", requireAuth, async (req, res, next) => {
+  try {
+    const { type, message } = req.body;
+    const user = await User.findById(req.auth.sub);
+    const userName = user ? user.name : "Agent";
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(req.params.roomId).emit("emergency-alert", { userName, message, type });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/:roomId/ai-qa", requireAuth, async (req, res, next) => {
+  try {
+    const { message } = req.body;
+    const replies = [
+      "Optimal focus trajectory is achieved by completing the current task block.",
+      "Discipline is muscle memory. Do not break connection.",
+      "The AI Coach recommends a 5-minute break only after the 50-minute mark.",
+      "Distractions detected. Recalibrate focus uplink."
+    ];
+    const reply = replies[Math.floor(Math.random() * replies.length)];
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(req.params.roomId).emit("ai-coach-broadcast", { message: `AI Coach suggestion: ${reply}` });
+    }
+    res.json({ reply });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/:roomId/bet", requireAuth, async (req, res, next) => {
+  try {
+    const { amount, outcome } = req.body;
+    const user = await User.findById(req.auth.sub);
+    const userName = user ? user.name : "Agent";
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(req.params.roomId).emit("bet-placed", { userName, amount, outcome });
+    }
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

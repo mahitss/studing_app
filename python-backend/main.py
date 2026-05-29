@@ -32,7 +32,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         if token != expected_token:
             raise HTTPException(status_code=401, detail="Unauthorized: invalid token")
     else:
-        if token != "dev-local-secret-only":
+        if token != "612912a49954c0cb79e5aeb40540c5ebb2a35cc93442f83938ed38c3d6b602fd":
             raise HTTPException(status_code=401, detail="Unauthorized: invalid token")
 
 def coerce_object_id(v):
