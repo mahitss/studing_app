@@ -28,13 +28,15 @@ export const socket = io(SOCKET_URL, {
 export function saveAuthSession(userId: string, token?: string) {
   if (typeof window === "undefined") return;
   localStorage.setItem(USER_ID_KEY, userId);
-  // Token is now handled via HttpOnly cookies by the backend
+  if (token) {
+    localStorage.setItem("study-tracker-auth-token", token);
+  }
 }
 
 export function clearAuthSession() {
   if (typeof window === "undefined") return;
   localStorage.removeItem(USER_ID_KEY);
-  // Optional: call a logout endpoint to clear cookies if needed
+  localStorage.removeItem("study-tracker-auth-token");
 }
 
 async function request<T>(path: string, init?: RequestInit, retries = 3): Promise<T> {
@@ -47,15 +49,21 @@ async function request<T>(path: string, init?: RequestInit, retries = 3): Promis
     const timeoutId = setTimeout(() => controller.abort(), 12000);
 
     try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("study-tracker-auth-token") : null;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...(init?.headers as Record<string, string> || {})
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const fullUrl = `${API_BASE}${path}`.replace(/([^:]\/)\/+/g, "$1");
       const res = await fetch(fullUrl, {
         ...init,
         signal: controller.signal,
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...(init?.headers || {})
-        },
+        headers,
         cache: "no-store"
       });
       clearTimeout(timeoutId);
