@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const challengeSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    type: { type: String, enum: ["daily", "weekly", "achievement"], required: true },
+    type: { type: String, required: true },
     title: { type: String, required: true },
     description: { type: String },
     targetValue: { type: Number, required: true },
@@ -13,6 +13,7 @@ const challengeSchema = new mongoose.Schema(
     isCompleted: { type: Boolean, default: false },
     completedAt: { type: Date },
     deadline: { type: Date },
+    date: { type: String }
   },
   { timestamps: true }
 );
