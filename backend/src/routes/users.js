@@ -160,7 +160,7 @@ router.get("/:userId/sessions/today", requireAuth, requireSelf, async (req, res,
     const today = trackerService.todayKey();
     const sessions = await StudySession.find({ 
       userId: req.params.userId,
-      startedAt: { $regex: `^${today}` }
+      date: today
     }).sort({ startedAt: -1 });
     
     res.json({ sessions, serverTime: new Date().toISOString() });

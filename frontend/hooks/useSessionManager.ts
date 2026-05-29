@@ -159,6 +159,7 @@ export function useSessionManager() {
     if (!user?._id || !activeSession) return;
     try {
       setIsActionLoading(true);
+      const notesStr = typeof notes === "string" ? notes : "";
       const sessionSubject = activeSession.subject || "General";
       const sessionMode = activeSession.studyMode || "custom";
       const sessionMinutes = activeSession.plannedDurationMinutes || 0;
@@ -168,7 +169,7 @@ export function useSessionManager() {
         user._id,
         activeSession._id,
         inactiveSeconds,
-        notes,
+        notesStr,
         sessionSubject,
         "manual",
         antiCheatFlags,

@@ -134,7 +134,7 @@ const TimerView: React.FC<TimerViewProps> = ({
                     </button>
                   )}
                   <button 
-                    onClick={onEnd} 
+                    onClick={() => onEnd()} 
                     aria-label="End session"
                     className="btn-danger px-12 py-4 rounded-2xl flex items-center gap-3"
                   >
