@@ -183,8 +183,10 @@ router.post("/:userId/sessions/offline-sync", requireAuth, requireSelf, sessionL
       } else {
         focused = 0;
       }
+      const dateVal = s.date || (s.startedAt ? new Date(s.startedAt).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10));
       return {
         ...s,
+        date: dateVal,
         focusedMinutes: focused,
         userId: req.params.userId,
         status: "completed"
@@ -350,8 +352,10 @@ router.post("/:userId/sessions/start", requireAuth, requireSelf, sessionLimiter,
     const { subject, studyMode, plannedDurationMinutes, riskMode } = req.body;
     const userId = req.params.userId;
     const now = new Date().toISOString();
+    const dateStr = now.slice(0, 10);
     const session = await StudySession.create({
       userId,
+      date: dateStr,
       subject: subject || "General",
       studyMode: studyMode || "custom",
       plannedDurationMinutes: plannedDurationMinutes || 0,
