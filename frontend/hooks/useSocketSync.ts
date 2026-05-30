@@ -26,8 +26,7 @@ export function useSocketSync() {
       
       socket.on("connect_error", (err) => {
         if (retryCount.current > 50) {
-          console.error("[GrindLock] Maximum reconnection attempts reached.");
-          setError("Neural uplink failed. Network protocols exhausted.");
+          console.error("[GrindLock] Maximum reconnection attempts reached. Real-time engine offline.");
           return;
         }
         const backoff = Math.min(1000 * Math.pow(2, retryCount.current), 30000);
