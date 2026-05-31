@@ -5,9 +5,13 @@ if (!process.env.MONGODB_URI) {
   console.error("FATAL CONFIG ERROR: MONGODB_URI is not defined.");
   process.exit(1);
 }
-const JWT_SECRET = process.env.JWT_SECRET || "612912a49954c0cb79e5aeb40540c5ebb2a35cc93442f83938ed38c3d6b602fd";
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "production" ? null : "612912a49954c0cb79e5aeb40540c5ebb2a35cc93442f83938ed38c3d6b602fd");
 if (!process.env.JWT_SECRET) {
-  console.warn("WARNING: JWT_SECRET is not defined in environment variables. Using fallback secret.");
+  if (process.env.NODE_ENV === "production") {
+    console.error("FATAL: JWT_SECRET is not defined in environment variables in production mode.");
+  } else {
+    console.warn("WARNING: JWT_SECRET is not defined in environment variables. Using fallback secret.");
+  }
 }
 
 const http = require("http");
@@ -67,6 +71,9 @@ const jwt = require("jsonwebtoken");
 
 io.use((socket, next) => {
   try {
+    if (!JWT_SECRET) {
+      return next(new Error("Server misconfigured: JWT_SECRET is missing"));
+    }
     const cookieHeader = socket.handshake.headers.cookie;
     if (!cookieHeader) {
       return next(new Error("Authentication error: No cookies found"));

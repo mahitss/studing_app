@@ -1,5 +1,6 @@
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
+import Image from 'next/image';
 
 interface NeuralAnalyticsProps {
   data: any;
@@ -31,7 +32,7 @@ export default function NeuralAnalytics({ data }: NeuralAnalyticsProps) {
             {isLoading ? (
               <Skeleton className="absolute inset-0" />
             ) : data.graphs?.focus_trend ? (
-              <img src={`data:image/png;base64,${data.graphs.focus_trend}`} className="w-full h-full object-contain rounded-xl border border-white/5" alt="Focus trend chart" />
+              <Image src={`data:image/png;base64,${data.graphs.focus_trend}`} className="w-full h-full object-contain rounded-xl border border-white/5" alt="Focus trend chart" width={600} height={300} unoptimized />
             ) : (
                <div className="absolute inset-0 bg-white/5 rounded-xl flex items-center justify-center text-[10px] font-black uppercase text-muted">Awaiting Neural Map...</div>
             )}
@@ -46,7 +47,7 @@ export default function NeuralAnalytics({ data }: NeuralAnalyticsProps) {
             {isLoading ? (
               <Skeleton className="absolute inset-0" />
             ) : data.graphs?.subject_distribution ? (
-              <img src={`data:image/png;base64,${data.graphs.subject_distribution}`} className="w-full h-full object-contain mx-auto" alt="Subject distribution chart" />
+              <Image src={`data:image/png;base64,${data.graphs.subject_distribution}`} className="w-full h-full object-contain mx-auto" alt="Subject distribution chart" width={400} height={400} unoptimized />
             ) : (
               <div className="absolute inset-0 bg-white/5 rounded-xl flex items-center justify-center text-[10px] font-black uppercase text-muted">No Cluster Data</div>
             )}

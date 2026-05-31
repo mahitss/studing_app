@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   socket,
@@ -229,7 +229,7 @@ export default function StudyTrackerApp() {
   const offlineQueueKey = "study-tracker-offline-session-queue";
   const ritualKey = `study-tracker-ritual-${new Date().toISOString().slice(0, 10)}`;
 
-  const refreshAll = async (userId: string) => {
+  const refreshAll = useCallback(async (userId: string) => {
     try {
       const results = await Promise.allSettled([
         fetchDashboard(userId),
@@ -286,7 +286,7 @@ export default function StudyTrackerApp() {
     } catch (err: any) {
       setError("Critical telemetry failure. Protocol: Manual Refresh.");
     }
-  };
+  }, [setDashboard, setUser, setGoalDaily, setGoalWeekly, setGoalSessions, setIdentityType, summaryEmail, setSummaryEmail, setError, setSessions, setActiveSession, setSubject, setStudyMode, setPlannedDuration, setRiskMode, setLiveFriends, setLiveMessage, setLastSyncAt]);
 
   const handleManualOffline = () => {
     localStorage.setItem("study-tracker-pref-mock", "true");
@@ -326,7 +326,7 @@ export default function StudyTrackerApp() {
       }
     };
     init();
-  }, []);
+  }, [refreshAll, setError, setIsInitializing]);
 
   const handleCreateRoom = async () => {
     if (!user) return;
@@ -435,7 +435,7 @@ export default function StudyTrackerApp() {
       };
       getTelemetry();
     }
-  }, [screen, user]);
+  }, [screen, user, setError]);
 
   useEffect(() => {
     setWalletConnected(!!user?.ethAddress);
@@ -568,7 +568,7 @@ export default function StudyTrackerApp() {
         recognition.stop();
       };
     }
-  }, [isListening]);
+  }, [isListening, setError]);
 
   const toggleVoiceControl = () => {
     if (isListening) {

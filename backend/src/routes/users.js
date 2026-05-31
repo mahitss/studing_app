@@ -62,6 +62,7 @@ const sanitizeUser = (userDoc) => {
 };
 
 // POST /users/bootstrap
+// NOTE: Guest bootstrap users enter without a password, meaning their passwordHash defaults to an empty string.
 router.post("/bootstrap", async (req, res, next) => {
   try {
     const { name, college, identityType, motivationWhy } = req.body;
@@ -172,6 +173,9 @@ router.get("/:userId/sessions/today", requireAuth, requireSelf, async (req, res,
 router.post("/:userId/sessions/offline-sync", requireAuth, requireSelf, sessionLimiter, validate(offlineSyncSchema), async (req, res, next) => {
   try {
     const { sessions } = req.body;
+    if (!sessions || sessions.length === 0) {
+      return res.status(400).json({ message: "Must provide at least one session" });
+    }
 
     const validatedSessions = sessions.map(s => {
       const start = new Date(s.startedAt).getTime();

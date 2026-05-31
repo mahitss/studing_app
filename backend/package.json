@@ -27,6 +27,7 @@
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
+    "mongodb-memory-server": "^9.2.0",
     "nodemon": "^3.1.4"
   }
 }

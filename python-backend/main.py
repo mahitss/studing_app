@@ -32,6 +32,8 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         if token != expected_token:
             raise HTTPException(status_code=401, detail="Unauthorized: invalid token")
     else:
+        if os.environ.get("ENV") == "production" or os.environ.get("NODE_ENV") == "production":
+            raise HTTPException(status_code=500, detail="Server misconfigured: JWT_SECRET missing in production")
         if token != "612912a49954c0cb79e5aeb40540c5ebb2a35cc93442f83938ed38c3d6b602fd":
             raise HTTPException(status_code=401, detail="Unauthorized: invalid token")
 
@@ -178,7 +180,8 @@ def analyze_sessions(payload: AnalyticsRequest):
     except Exception as e:
         pass
 
-    message = f"You are {productivity_boost}% more productive at {best_study_time_label.split(' ')[0]}" if productivity_boost > 0 else "You are consistently productive throughout the day!"
+    best_time_prefix = best_study_time_label.split(' ')[0] if best_study_time_label else "Anytime"
+    message = f"You are {productivity_boost}% more productive at {best_time_prefix}" if productivity_boost > 0 else "You are consistently productive throughout the day!"
 
     # 2. Focus Score Algorithm
     total_focus_time = df['focusedMinutes'].sum()

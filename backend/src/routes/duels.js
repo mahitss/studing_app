@@ -78,9 +78,11 @@ router.post("/:duelId/sync", requireAuth, async (req, res, next) => {
     if (duel.challengerProgress >= duel.durationMinutes || duel.opponentProgress >= duel.durationMinutes) {
       duel.status = "completed";
       if (duel.challengerProgress >= duel.durationMinutes && duel.opponentProgress >= duel.durationMinutes) {
-        // If both finished, the one who just synced is considered winner in this simplified logic
-        // or we could check who has more progress.
-        duel.winnerId = String(userId) === String(duel.challengerId) ? duel.challengerId : duel.opponentId;
+        if (duel.challengerProgress === duel.opponentProgress) {
+          duel.winnerId = String(userId) === String(duel.challengerId) ? duel.challengerId : duel.opponentId;
+        } else {
+          duel.winnerId = duel.challengerProgress > duel.opponentProgress ? duel.challengerId : duel.opponentId;
+        }
       } else {
         duel.winnerId = duel.challengerProgress >= duel.durationMinutes ? duel.challengerId : duel.opponentId;
       }

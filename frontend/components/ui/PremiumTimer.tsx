@@ -25,7 +25,7 @@ export default function PremiumTimer({
       notifiedRef.current = false;
       return;
     }
-  }, [activeSession?._id]);
+  }, [activeSession]);
 
   useEffect(() => {
     const totalSecs = Math.max(1, (activeSession?.plannedDurationMinutes || (studyMode === "pomodoro" ? 25 : studyMode === "deep" ? 50 : plannedDuration)) * 60);
