@@ -26,6 +26,21 @@ export default function SignUpPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignupFormValues>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      name: "Focused Student",
+      email: "",
+      password: "",
+      identity: "Serious",
+      why: "Job - 12 LPA",
+    },
+  });
+
   useEffect(() => {
     const userId = localStorage.getItem("study-tracker-user-id");
     if (userId) {
@@ -45,21 +60,6 @@ export default function SignUpPage() {
       </div>
     );
   }
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<SignupFormValues>({
-    resolver: zodResolver(signupSchema),
-    defaultValues: {
-      name: "Focused Student",
-      email: "",
-      password: "",
-      identity: "Serious",
-      why: "Job - 12 LPA",
-    },
-  });
 
   const onSubmit = async (data: SignupFormValues) => {
     if (loading) return;
