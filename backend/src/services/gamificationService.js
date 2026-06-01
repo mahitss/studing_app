@@ -10,7 +10,7 @@ const CURRENT_EVENT = {
   active: true,
   multiplier: 1.5,
   name: "Spring Neural Surge",
-  endDate: new Date("2026-06-01")
+  endDate: new Date("2026-12-31")
 };
 
 async function awardAchievement(userId, criteriaType, value) {

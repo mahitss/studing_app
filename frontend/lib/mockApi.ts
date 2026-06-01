@@ -459,7 +459,6 @@ export async function mockRequest<T>(path: string, init?: RequestInit): Promise<
 
   const emailSummaryMatch = path.match(/^\/users\/([^/]+)\/email-summary$/);
   if (emailSummaryMatch && method === "POST") {
-    console.log("--- MOCK EMAIL DELIVERED ---", "\nTo:", body?.email, "\nContent: Weekly Progress Summary");
     return { ok: true, message: "Progress email successfully simulated via Mock API.", summary: { totalHours: 12.5, weeklyHours: 5.2, completionRate: 85 } } as T;
   }
 

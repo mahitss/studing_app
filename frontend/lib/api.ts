@@ -8,7 +8,7 @@ let isSyncing = false;
 // Use mock API whenever no explicit backend URL is configured.
 export const HAS_BACKEND = 
   typeof window !== "undefined" && 
-  localStorage.getItem("study-tracker-pref-mock") !== "true" && 
+  localStorage.getItem("study-tracker-pref-mock") === "false" && 
   (process.env.NEXT_PUBLIC_DEMO_MODE !== "true");
 
 const API_BASE_RAW = (process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "development" ? "http://localhost:5000/api" : "")).trim();

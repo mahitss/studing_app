@@ -28,14 +28,10 @@ security = HTTPBearer()
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     expected_token = os.environ.get("JWT_SECRET")
-    if expected_token:
-        if token != expected_token:
-            raise HTTPException(status_code=401, detail="Unauthorized: invalid token")
-    else:
-        if os.environ.get("ENV") == "production" or os.environ.get("NODE_ENV") == "production":
-            raise HTTPException(status_code=500, detail="Server misconfigured: JWT_SECRET missing in production")
-        if token != "612912a49954c0cb79e5aeb40540c5ebb2a35cc93442f83938ed38c3d6b602fd":
-            raise HTTPException(status_code=401, detail="Unauthorized: invalid token")
+    if not expected_token:
+        raise HTTPException(status_code=500, detail="Server misconfigured: JWT_SECRET environment variable is missing")
+    if token != expected_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: invalid token")
 
 def coerce_object_id(v):
     if isinstance(v, dict) and "$oid" in v:
