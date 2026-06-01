@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,8 +22,29 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 
 export default function SignUpPage() {
   const router = useRouter();
+  const [checkingSession, setCheckingSession] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const userId = localStorage.getItem("study-tracker-user-id");
+    if (userId) {
+      router.replace("/dashboard");
+    } else {
+      setCheckingSession(false);
+    }
+  }, [router]);
+
+  if (checkingSession) {
+    return (
+      <div className="auth-wrapper relative z-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6">
+          <div className="w-12 h-12 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+          <p className="text-xs font-black tracking-widest text-accent animate-pulse uppercase">Retrieving session...</p>
+        </div>
+      </div>
+    );
+  }
 
   const {
     register,

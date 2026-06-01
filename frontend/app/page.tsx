@@ -18,6 +18,27 @@ import {
 
 export default function StudyTrackerLandingPage() {
   const router = useRouter();
+  const [checkingSession, setCheckingSession] = React.useState(true);
+
+  React.useEffect(() => {
+    const userId = localStorage.getItem("study-tracker-user-id");
+    if (userId) {
+      router.replace("/dashboard");
+    } else {
+      setCheckingSession(false);
+    }
+  }, [router]);
+
+  if (checkingSession) {
+    return (
+      <div className="auth-wrapper relative z-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6">
+          <div className="w-12 h-12 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+          <p className="text-xs font-black tracking-widest text-accent animate-pulse uppercase">Retrieving session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main className="relative w-full min-h-[115vh] overflow-x-hidden flex flex-col items-center font-sans selection:bg-white/20 selection:text-white">
