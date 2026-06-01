@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   socket,
@@ -348,6 +349,67 @@ export default function StudyTrackerApp() {
     };
     init();
   }, [refreshAll, setError, setIsInitializing]);
+
+  // Background Sync & Cross-Tab State Synchronization
+  useEffect(() => {
+    if (!user?._id) return;
+
+    // 1. Storage Event Listener for Cross-Tab Sync
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "gl-active-session") {
+        const raw = localStorage.getItem("gl-active-session");
+        if (raw) {
+          try {
+            setActiveSession(JSON.parse(raw));
+          } catch {}
+        } else {
+          setActiveSession(null);
+        }
+      }
+      if (e.key === "study-tracker-mock-store-v1" && user?._id) {
+        // Refetch dashboard and sessions to sync state across tabs
+        fetchDashboard(user._id).then(setDashboard).catch(() => {});
+        getTodaySessions(user._id).then(({ sessions }) => setSessions(sessions)).catch(() => {});
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    // 2. Offline Sync Function
+    const performOfflineSync = async () => {
+      if (!HAS_BACKEND) return; // Only sync to backend in online mode
+      try {
+        const rawQueue = localStorage.getItem("study-tracker-offline-queue");
+        if (!rawQueue) return;
+        const queuedSessions = JSON.parse(rawQueue);
+        if (!Array.isArray(queuedSessions) || queuedSessions.length === 0) return;
+
+        console.log(`[GrindLock Sync] Found ${queuedSessions.length} offline sessions. Initiating sync...`);
+        const syncRes = await syncOfflineSessions(user._id, queuedSessions);
+        if (syncRes && syncRes.synced > 0) {
+          localStorage.removeItem("study-tracker-offline-queue");
+          toast.success(`${syncRes.synced} offline study session(s) synchronized successfully!`);
+          if (syncRes.dashboard) {
+            setDashboard(syncRes.dashboard);
+          }
+          const { sessions: sessionList } = await getTodaySessions(user._id);
+          setSessions(sessionList);
+        }
+      } catch (err) {
+        console.warn("[GrindLock Sync] Background synchronization failed:", err);
+      }
+    };
+
+    // Trigger sync on mount, when coming online, or periodically
+    performOfflineSync();
+    window.addEventListener("online", performOfflineSync);
+    const syncInterval = setInterval(performOfflineSync, 60000); // Check every minute
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("online", performOfflineSync);
+      clearInterval(syncInterval);
+    };
+  }, [user, setDashboard, setActiveSession, setSessions]);
 
   const handleCreateRoom = async () => {
     if (!user) return;

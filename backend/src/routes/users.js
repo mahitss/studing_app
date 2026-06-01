@@ -5,7 +5,7 @@ const User = require("../models/User");
 
 const sessionLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 30, // limit each IP to 30 session operations per windowMs
+  max: 100, // limit each IP to 100 session operations per windowMs
   message: { message: "Too many session operations. Uplink throttled." },
   standardHeaders: true,
   legacyHeaders: false

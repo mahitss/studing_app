@@ -157,13 +157,14 @@ export function useSessionManager() {
 
   const handleEnd = async (notes = "", antiCheatFlags = 0) => {
     if (!user?._id || !activeSession) return;
+    const notesStr = typeof notes === "string" ? notes : "";
+    const sessionSubject = activeSession.subject || "General";
+    const sessionMode = activeSession.studyMode || "custom";
+    const sessionMinutes = activeSession.plannedDurationMinutes || 0;
+    const sessionRisk = !!activeSession.riskMode;
+
     try {
       setIsActionLoading(true);
-      const notesStr = typeof notes === "string" ? notes : "";
-      const sessionSubject = activeSession.subject || "General";
-      const sessionMode = activeSession.studyMode || "custom";
-      const sessionMinutes = activeSession.plannedDurationMinutes || 0;
-      const sessionRisk = !!activeSession.riskMode;
 
       const response = await endSession(
         user._id,
@@ -192,7 +193,37 @@ export function useSessionManager() {
       setSessions(sessionList);
       setInactiveSeconds(0);
     } catch (err: any) {
-      setError(err.message || "Telemetry upload failed.");
+      // Offline fallback: save completed session to offline queue
+      try {
+        const queue = JSON.parse(localStorage.getItem("study-tracker-offline-queue") || "[]");
+        queue.push({
+          startedAt: activeSession.startedAt,
+          endedAt: new Date().toISOString(),
+          focusedMinutes: Math.max(1, Math.round(elapsed / 60)),
+          inactiveSeconds: inactiveSeconds,
+          pauseCount: activeSession.pauseCount || 0,
+          subject: sessionSubject,
+          studyMode: sessionMode,
+          plannedDurationMinutes: sessionMinutes,
+          riskMode: sessionRisk,
+          notes: notesStr,
+          date: activeSession.date
+        });
+        localStorage.setItem("study-tracker-offline-queue", JSON.stringify(queue));
+      } catch (e) {
+        console.warn("Failed to queue offline session:", e);
+      }
+
+      // Clear active session locally so user isn't locked
+      setActiveSession(null);
+      try {
+        localStorage.removeItem("gl-active-session");
+      } catch (e) {
+        console.warn("localStorage operation failed", e);
+      }
+      setInactiveSeconds(0);
+      
+      setError("Uplink offline. Study session queued locally and will be synchronized when connection is restored.");
     } finally {
       setIsActionLoading(false);
     }

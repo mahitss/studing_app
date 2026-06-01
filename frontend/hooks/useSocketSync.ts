@@ -13,32 +13,24 @@ export function useSocketSync() {
     setError 
   } = useStore();
 
-  const retryCount = useRef(0);
-
   useEffect(() => {
     if (user && HAS_BACKEND) {
-      const connect = () => {
-        socket.connect();
-        socket.emit("authenticate", user._id);
-      };
-
-      connect();
+      socket.connect();
+      socket.emit("authenticate", user._id);
       
       socket.on("connect_error", (err) => {
-        if (retryCount.current > 50) {
-          console.error("[GrindLock] Maximum reconnection attempts reached. Real-time engine offline.");
-          return;
-        }
-        const backoff = Math.min(1000 * Math.pow(2, retryCount.current), 30000);
-        console.warn(`[GrindLock] Real-time engine offline (Attempt ${retryCount.current + 1}):`, err.message);
-        retryCount.current++;
-        setTimeout(() => {
-          if (user && HAS_BACKEND) socket.connect();
-        }, backoff);
+        console.warn("[GrindLock] Real-time engine connection error:", err.message);
+      });
+
+      socket.on("reconnect_attempt", (attempt) => {
+        console.warn(`[GrindLock] Real-time engine attempting reconnection (Attempt ${attempt}/50)...`);
+      });
+
+      socket.on("reconnect_failed", () => {
+        console.error("[GrindLock] Maximum reconnection attempts reached. Real-time engine offline.");
       });
 
       socket.on("connect", () => {
-        retryCount.current = 0;
         socket.emit("authenticate", user._id);
       });
 

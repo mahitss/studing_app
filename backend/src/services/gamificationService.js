@@ -10,7 +10,8 @@ const CURRENT_EVENT = {
   active: true,
   multiplier: 1.5,
   name: "Spring Neural Surge",
-  endDate: new Date("2026-12-31")
+  // Dynamically set endDate to December 31st of the current year to prevent event expiration
+  endDate: new Date(new Date().getFullYear(), 11, 31, 23, 59, 59, 999)
 };
 
 async function awardAchievement(userId, criteriaType, value) {

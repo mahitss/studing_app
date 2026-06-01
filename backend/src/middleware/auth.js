@@ -1,8 +1,17 @@
 const jwt = require("jsonwebtoken");
-const JWT_SECRET = process.env.JWT_SECRET;
+const crypto = require("crypto");
+const JWT_SECRET = process.env.JWT_SECRET || (
+  process.env.NODE_ENV === "production" 
+    ? undefined 
+    : (() => {
+        const fallback = crypto.randomBytes(32).toString("hex");
+        console.warn(`WARNING: JWT_SECRET environment variable is missing. Generating dynamic fallback secret: ${fallback}`);
+        return fallback;
+      })()
+);
 
 if (!JWT_SECRET) {
-  console.error("FATAL: JWT_SECRET environment variable is missing.");
+  console.error("FATAL: JWT_SECRET environment variable is missing and cannot generate dynamic secret in production.");
   process.exit(1);
 }
 

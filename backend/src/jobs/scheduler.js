@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const StudySession = require("../models/StudySession");
 const logger = require("../utils/logger");
 const gamificationService = require("../services/gamificationService");
 
@@ -37,6 +38,20 @@ const runDailyChecks = async () => {
       } catch (err) {
         logger.error(`[Scheduler] Daily checks failed for user ${user._id}: ${err.message}`);
       }
+    }
+
+    // Cleanup sessions older than 365 days (Data Retention Policy)
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - 365);
+      const retentionResult = await StudySession.deleteMany({
+        createdAt: { $lt: cutoffDate }
+      });
+      if (retentionResult.deletedCount > 0) {
+        logger.info(`[Scheduler] Data retention policy: deleted ${retentionResult.deletedCount} study sessions older than 365 days.`);
+      }
+    } catch (err) {
+      logger.error(`[Scheduler] Data retention session cleanup failed: ${err.message}`);
     }
 
     logger.info("[Scheduler] Daily checks completed successfully.");

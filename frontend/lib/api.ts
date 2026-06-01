@@ -18,8 +18,9 @@ const SOCKET_URL = API_BASE ? API_BASE.replace(/\/api$/, "") : "";
 export const socket = io(SOCKET_URL, {
   autoConnect: false,
   reconnection: true,
-  reconnectionAttempts: 10,
-  reconnectionDelay: 2000,
+  reconnectionAttempts: 50,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 30000,
   timeout: 10000,
   transports: ["websocket", "polling"],
   withCredentials: true
@@ -151,23 +152,26 @@ async function request<T>(path: string, init?: RequestInit, retries = 3): Promis
       clearTimeout(timeoutId);
       
       const isTimeout = err.name === 'AbortError' && controller.signal.aborted;
-      // Intentionally aborted requests should NOT be retried. 
-      // isTimeout is only true if OUR controller.abort() was called.
+      let finalError = err;
+      if (isTimeout) {
+        finalError = new Error("Request timed out after 12 seconds.");
+      }
       
-      const isRetryableStatus = err.status
-        ? ![400, 401, 403, 404, 422].includes(err.status)
-        : true; // Network errors / timeouts are retryable
+      const isRetryableStatus = finalError.status
+        ? ![400, 401, 403, 404, 422].includes(finalError.status)
+        : true;
 
       if (attempt < retries && (isTimeout || isRetryableStatus)) {
         const delay = Math.pow(2, attempt) * 1000;
+        console.warn(`[GrindLock API] Request to ${path} failed. Retrying attempt ${attempt + 1}/${retries} in ${delay}ms... Error: ${finalError.message}`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return executeRequest(attempt + 1);
       }
       
-      if (err.message === 'Failed to fetch') {
+      if (finalError.message === 'Failed to fetch') {
         throw new Error('Backend server is unreachable. Ensure it is running on port 5000.');
       }
-      throw err;
+      throw finalError;
     }
   };
 
