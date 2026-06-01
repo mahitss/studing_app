@@ -9,6 +9,7 @@ type Store = {
   roastMode: boolean;
   identityType: "Casual" | "Serious" | "Hardcore";
   motivationWhy: string;
+  password?: string;
 };
 
 const STORE_KEY = "study-tracker-mock-store-v1";
@@ -23,7 +24,8 @@ function loadStore(): Store {
       sessions: [],
       roastMode: true,
       identityType: "Serious",
-      motivationWhy: ""
+      motivationWhy: "",
+      password: ""
     };
   }
 
@@ -40,7 +42,8 @@ function loadStore(): Store {
       sessions: [],
       roastMode: true,
       identityType: "Serious",
-      motivationWhy: ""
+      motivationWhy: "",
+      password: ""
     };
   }
 }
@@ -241,6 +244,7 @@ export async function mockRequest<T>(path: string, init?: RequestInit): Promise<
       email: body.email
     };
     store.user = user;
+    store.password = body.password || "";
     store.identityType = body.identityType || "Serious";
     store.motivationWhy = body.motivationWhy || "";
     saveStore(store);
@@ -248,6 +252,16 @@ export async function mockRequest<T>(path: string, init?: RequestInit): Promise<
   }
 
   if (path === "/auth/login" && method === "POST") {
+    if (store.user && store.user.email) {
+      if (body.email?.toLowerCase() !== store.user.email.toLowerCase() || body.password !== (store.password || "")) {
+        throw new Error("Invalid credentials");
+      }
+    } else if (store.user) {
+      store.user.email = body.email;
+      store.password = body.password || "";
+    } else {
+      store.password = body.password || "";
+    }
     const user = store.user || {
       _id: `user-${Date.now()}`,
       name: "Focused Student",
