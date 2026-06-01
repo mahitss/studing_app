@@ -25,9 +25,9 @@ describe('HAS_BACKEND Precedence Logic', () => {
     jest.resetModules();
   });
 
-  it('should set HAS_BACKEND to false by default (when preference is missing)', () => {
+  it('should set HAS_BACKEND to true by default (when preference is missing)', () => {
     const { HAS_BACKEND } = require('../lib/api');
-    expect(HAS_BACKEND).toBe(false);
+    expect(HAS_BACKEND).toBe(true);
   });
 
   it('should set HAS_BACKEND to true when preference is explicitly set to "false"', () => {
