@@ -39,6 +39,43 @@ export function clearAuthSession() {
   localStorage.removeItem("study-tracker-auth-token");
 }
 
+let refreshPromise: Promise<string> | null = null;
+
+async function refreshAuthToken(): Promise<string> {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const fullUrl = `${API_BASE}/auth/refresh`.replace(/([^:]\/)\/+/g, "$1");
+      const res = await fetch(fullUrl, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      if (!res.ok) {
+        throw new Error("Failed to refresh token");
+      }
+      const data = await res.json();
+      if (!data.token) {
+        throw new Error("No token returned in refresh response");
+      }
+      localStorage.setItem("study-tracker-auth-token", data.token);
+      return data.token;
+    } catch (err) {
+      clearAuthSession();
+      throw err;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
 async function request<T>(path: string, init?: RequestInit, retries = 3): Promise<T> {
   if (!HAS_BACKEND) {
     return mockRequest<T>(path, init);
@@ -67,6 +104,33 @@ async function request<T>(path: string, init?: RequestInit, retries = 3): Promis
         cache: "no-store"
       });
       clearTimeout(timeoutId);
+
+      if (res.status === 401 && path !== "/auth/refresh" && path !== "/auth/login" && path !== "/auth/register" && path !== "/users/bootstrap") {
+        try {
+          const newToken = await refreshAuthToken();
+          // Retry request with new token
+          headers["Authorization"] = `Bearer ${newToken}`;
+          const retryRes = await fetch(fullUrl, {
+            ...init,
+            credentials: "include",
+            headers,
+            cache: "no-store"
+          });
+          if (!retryRes.ok) {
+            const errorData = await retryRes.json().catch(() => ({}));
+            let errMsg = errorData.error?.message || errorData.message || `API Error ${retryRes.status}`;
+            const error = new Error(errMsg);
+            (error as any).status = retryRes.status;
+            throw error;
+          }
+          return retryRes.json();
+        } catch (refreshErr) {
+          clearAuthSession();
+          const error = new Error("Session expired. Please log in again.");
+          (error as any).status = 401;
+          throw error;
+        }
+      }
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));

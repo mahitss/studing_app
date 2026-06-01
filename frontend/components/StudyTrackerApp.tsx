@@ -239,6 +239,21 @@ export default function StudyTrackerApp() {
 
       const [dashRes, sessionsRes, liveRes] = results;
 
+      const hasAuthError = results.some(res => 
+        res.status === "rejected" && 
+        ((res.reason as any)?.status === 401 || 
+         (res.reason as any)?.message?.includes("expired") || 
+         (res.reason as any)?.message?.includes("Unauthorized") || 
+         (res.reason as any)?.message?.includes("Session expired"))
+      );
+
+      if (hasAuthError) {
+        clearAuthSession();
+        setUser(null);
+        router.push("/signin");
+        return;
+      }
+
       if (dashRes.status === "fulfilled" && dashRes.value) {
         const dash = dashRes.value;
         setDashboard(dash);
@@ -316,11 +331,17 @@ export default function StudyTrackerApp() {
         const userId = localStorage.getItem(userKey);
         if (!userId) {
           setIsInitializing(false);
+          router.push("/signin");
           return;
         }
         await refreshAll(userId);
-      } catch (err) {
+      } catch (err: any) {
         setError("Neural link severed.");
+        if (err.status === 401 || err.message?.includes("expired") || err.message?.includes("Unauthorized")) {
+          clearAuthSession();
+          setUser(null);
+          router.push("/signin");
+        }
       } finally {
         setIsInitializing(false);
       }
