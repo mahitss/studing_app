@@ -571,6 +571,12 @@ export default function StudyTrackerApp() {
 
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const isListeningRef = useRef(isListening);
+
+  // Sync isListening state to ref
+  useEffect(() => {
+    isListeningRef.current = isListening;
+  }, [isListening]);
 
   // Use refs for handlers to avoid effect re-runs when handlers change
   const handleStartRef = useRef(handleStart);
@@ -619,7 +625,7 @@ export default function StudyTrackerApp() {
       let lastRestart = Date.now();
 
       recognition.onend = () => {
-        if (isListening) {
+        if (isListeningRef.current) {
           const now = Date.now();
           if (now - lastRestart < 1000) {
             restartCount++;
@@ -645,18 +651,24 @@ export default function StudyTrackerApp() {
 
       return () => {
         recognition.onend = null;
-        recognition.stop();
+        try {
+          recognition.stop();
+        } catch (e) {}
       };
     }
-  }, [isListening, setError]);
+  }, [setError]);
 
   const toggleVoiceControl = () => {
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
     } else {
-      recognitionRef.current?.start();
-      setIsListening(true);
+      try {
+        recognitionRef.current?.start();
+        setIsListening(true);
+      } catch (e) {
+        console.error("Failed to start voice control:", e);
+      }
     }
   };
 
@@ -826,6 +838,14 @@ export default function StudyTrackerApp() {
                   onGoalUpdate={handleGoalUpdate}
                   onIdentityUpdate={handleIdentityUpdate}
                   onSendEmail={handleSendEmail}
+                  roastMode={settings.roastMode}
+                  setRoastMode={(val) => {
+                    const newSettings = { ...settings, roastMode: val };
+                    setSettings(newSettings);
+                    try {
+                      localStorage.setItem(settingsKey, JSON.stringify(newSettings));
+                    } catch (e) {}
+                  }}
                 />
               </ErrorBoundary>
             )}

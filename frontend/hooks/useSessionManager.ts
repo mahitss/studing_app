@@ -30,6 +30,20 @@ const SessionSchema = z.object({
   date: z.preprocess((val) => val || new Date().toISOString().slice(0, 10), z.string())
 });
 
+const OfflineSessionSchema = z.object({
+  startedAt: z.string(),
+  endedAt: z.string(),
+  focusedMinutes: z.number().int().nonnegative(),
+  inactiveSeconds: z.number().int().nonnegative(),
+  pauseCount: z.number().int().nonnegative(),
+  subject: z.string().trim().max(100),
+  studyMode: z.enum(["pomodoro", "deep", "custom"]),
+  plannedDurationMinutes: z.number().int().nonnegative(),
+  riskMode: z.boolean(),
+  notes: z.string().trim().max(1000),
+  date: z.string()
+});
+
 export function useSessionManager() {
   const {
     user,
@@ -197,7 +211,7 @@ export function useSessionManager() {
       try {
         if (activeSession) {
           const queue = JSON.parse(localStorage.getItem("study-tracker-offline-queue") || "[]");
-          queue.push({
+          const offlineSession = {
             startedAt: activeSession.startedAt,
             endedAt: new Date().toISOString(),
             focusedMinutes: Math.max(1, Math.round(elapsed / 60)),
@@ -209,7 +223,9 @@ export function useSessionManager() {
             riskMode: sessionRisk,
             notes: notesStr,
             date: activeSession.date
-          });
+          };
+          const validated = OfflineSessionSchema.parse(offlineSession);
+          queue.push(validated);
           localStorage.setItem("study-tracker-offline-queue", JSON.stringify(queue));
         }
       } catch (e) {

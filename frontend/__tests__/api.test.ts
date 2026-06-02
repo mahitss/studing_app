@@ -33,6 +33,7 @@ describe('HAS_BACKEND Precedence Logic', () => {
   });
 
   it('should set HAS_BACKEND to true by default (when preference is missing)', () => {
+    delete process.env.NEXT_PUBLIC_DEMO_MODE;
     const { HAS_BACKEND } = require('../lib/api');
     expect(HAS_BACKEND).toBe(true);
   });

@@ -29,6 +29,8 @@ export type User = {
     earnedAt: string;
   }>;
   studyGroups?: string[];
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type DailyGoal = {

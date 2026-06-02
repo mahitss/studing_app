@@ -28,7 +28,11 @@ async function awardAchievement(userId, criteriaType, value) {
       const alreadyHas = user.achievements.some(a => a.achievementId.toString() === ach._id.toString());
       if (!alreadyHas) {
         user.achievements.push({ achievementId: ach._id });
-        user.xp += ach.rewardXp;
+        if (user.xp > Number.MAX_SAFE_INTEGER - ach.rewardXp) {
+          user.xp = Number.MAX_SAFE_INTEGER;
+        } else {
+          user.xp += ach.rewardXp;
+        }
         newlyEarned.push(ach.title);
       }
     }

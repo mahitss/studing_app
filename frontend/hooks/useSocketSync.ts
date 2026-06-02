@@ -28,6 +28,7 @@ export function useSocketSync() {
 
       socket.on("reconnect_failed", () => {
         console.error("[GrindLock] Maximum reconnection attempts reached. Real-time engine offline.");
+        setError("Maximum reconnection attempts reached. Real-time engine offline. Check your internet connection.");
       });
 
       socket.on("connect", () => {
@@ -66,6 +67,8 @@ export function useSocketSync() {
       return () => {
         socket.off("connect");
         socket.off("connect_error");
+        socket.off("reconnect_attempt");
+        socket.off("reconnect_failed");
         socket.off("friend-update");
         socket.off("duel-update");
         socket.off("room-update");

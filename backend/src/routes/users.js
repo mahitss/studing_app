@@ -20,6 +20,7 @@ const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = require("../middleware/auth");
 const validate = require("../middleware/validate");
 const { startSessionSchema, endSessionSchema, offlineSyncSchema } = require("../validations/session.validation");
+const { updateGoalConfigSchema, updateUserProfileSchema } = require("../validations/user.validation");
 const { logAction } = require("../utils/auditLogger");
 const { dispatchWebhook } = require("../utils/webhookDispatcher");
 
@@ -95,7 +96,7 @@ router.put("/:userId/goals/today", requireAuth, requireSelf, async (req, res, ne
 });
 
 // PUT /users/:userId/goals/config
-router.put("/:userId/goals/config", requireAuth, requireSelf, async (req, res, next) => {
+router.put("/:userId/goals/config", requireAuth, requireSelf, validate(updateGoalConfigSchema), async (req, res, next) => {
   try {
     const { dailyMinutes, weeklyTargetMinutes, weeklySessionTarget } = req.body;
     const user = await User.findById(req.params.userId);
@@ -306,8 +307,14 @@ router.get("/:userId/analytics", requireAuth, requireSelf, async (req, res, next
             const pythonAnalytics = JSON.parse(data);
             res.json(pythonAnalytics);
           } catch (e) {
-            // Fallback if JSON parse fails
-            res.json({ message: "Python service returned invalid data", error: true });
+            trackerService.dashboardForUser(userId).then(dashboard => {
+              res.json({
+                average_study_time: dashboard.deepAnalytics.averageSessionLength,
+                focus_score: dashboard.focusScore.score,
+                message: "Python engine offline. Basic analytics active.",
+                graphs: {}
+              });
+            });
           }
         });
       });
@@ -378,6 +385,9 @@ router.post("/:userId/sessions/:sessionId/pause", requireAuth, requireSelf, sess
   try {
     const session = await StudySession.findById(req.params.sessionId);
     if (!session) return res.status(404).json({ message: "Session not found" });
+    if (String(session.userId) !== String(req.params.userId)) {
+      return res.status(403).json({ message: "Forbidden: session does not belong to this user" });
+    }
     
     const now = new Date();
     if (session.status === "running" && session.lastStartedAt) {
@@ -400,6 +410,9 @@ router.post("/:userId/sessions/:sessionId/resume", requireAuth, requireSelf, ses
   try {
     const session = await StudySession.findById(req.params.sessionId);
     if (!session) return res.status(404).json({ message: "Session not found" });
+    if (String(session.userId) !== String(req.params.userId)) {
+      return res.status(403).json({ message: "Forbidden: session does not belong to this user" });
+    }
 
     const now = new Date();
     session.status = "running";
@@ -427,6 +440,9 @@ router.post("/:userId/sessions/:sessionId/end", requireAuth, requireSelf, sessio
     
     const session = await StudySession.findById(req.params.sessionId);
     if (!session) return res.status(404).json({ message: "Session not found" });
+    if (String(session.userId) !== String(req.params.userId)) {
+      return res.status(403).json({ message: "Forbidden: session does not belong to this user" });
+    }
     if (session.status === "completed") {
       return res.status(400).json({ message: "Session is already completed" });
     }
@@ -477,6 +493,9 @@ router.post("/:userId/sessions/:sessionId/reset", requireAuth, requireSelf, sess
   try {
     const session = await StudySession.findById(req.params.sessionId);
     if (!session) return res.status(404).json({ message: "Session not found" });
+    if (String(session.userId) !== String(req.params.userId)) {
+      return res.status(403).json({ message: "Forbidden: session does not belong to this user" });
+    }
 
     session.status = "reset";
     session.stopReason = req.body.stopReason || "reset";
@@ -539,7 +558,7 @@ router.get("/:userId/export", requireAuth, requireSelf, async (req, res, next) =
 });
 
 // PUT /users/:userId - Update user profile
-router.put("/:userId", requireAuth, requireSelf, async (req, res, next) => {
+router.put("/:userId", requireAuth, requireSelf, validate(updateUserProfileSchema), async (req, res, next) => {
   try {
     const { name, email, college, identityType, motivationWhy } = req.body;
     const user = await User.findById(req.params.userId);

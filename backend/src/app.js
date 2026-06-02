@@ -28,6 +28,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(cookieParser());
+app.use(require("./middleware/requestLogger"));
 app.use(express.json({ limit: "10kb" }));
 app.use(require("./middleware/sanitize"));
 

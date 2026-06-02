@@ -32,7 +32,8 @@ export default function LandingWaitlistForm() {
   const [loading, setLoading] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
 
-  const isValid = email.includes("@") && email.includes(".");
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const isValid = emailRegex.test(email);
   const progress = email.length === 0 ? 0 : isValid ? 100 : Math.min(email.length * 5, 80);
 
   const onSubmit = async () => {

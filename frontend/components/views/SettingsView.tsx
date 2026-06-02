@@ -22,6 +22,8 @@ interface SettingsViewProps {
   onGoalUpdate: () => void;
   onIdentityUpdate: () => void;
   onSendEmail: () => void;
+  roastMode: boolean;
+  setRoastMode: (val: boolean) => void;
 }
 
 const goalSchema = z.object({
@@ -66,6 +68,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   onGoalUpdate,
   onIdentityUpdate,
   onSendEmail,
+  roastMode,
+  setRoastMode,
 }) => {
   const {
     register: registerGoal,
@@ -216,6 +220,18 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                 {String(identityErrors.motivationWhy.message)}
               </p>
             )}
+          </div>
+          <div className="flex items-center gap-3 py-2">
+            <input
+              type="checkbox"
+              id="roastMode"
+              className="w-4 h-4 rounded border-white/10 bg-white/5 text-accent focus:ring-0 cursor-pointer"
+              checked={roastMode}
+              onChange={(e) => setRoastMode(e.target.checked)}
+            />
+            <label htmlFor="roastMode" className="text-[10px] font-black uppercase tracking-widest text-white/80 cursor-pointer select-none">
+              AI Roast Mode (Enable brutal accountability messages)
+            </label>
           </div>
           <button type="submit" className="btn-primary px-8 py-3 rounded-xl font-bold text-xs">
             Update Identity

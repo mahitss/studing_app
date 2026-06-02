@@ -7,7 +7,7 @@ interface NeuralAnalyticsProps {
 }
 
 export default function NeuralAnalytics({ data }: NeuralAnalyticsProps) {
-  const isLoading = !data || data.loading || Object.keys(data).length === 0;
+  const isLoading = !data || data.loading || (typeof data === 'object' && Object.keys(data).length === 0);
 
   const Skeleton = ({ className }: { className?: string }) => (
     <div className={`bg-white/5 animate-pulse rounded-xl ${className}`} />

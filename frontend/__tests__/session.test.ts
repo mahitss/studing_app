@@ -174,4 +174,51 @@ describe('useSessionManager Hook', () => {
     expect(useStore.getState().sessions).toEqual(mockSessionsList);
     expect(localStorage.getItem('gl-active-session')).toBeNull();
   });
+
+  it('should fallback to offline queue when endSession fails', async () => {
+    const activeSession = {
+      _id: 'session456',
+      status: 'running',
+      startedAt: new Date().toISOString(),
+      lastStartedAt: new Date().toISOString(),
+      elapsedSeconds: 600,
+      focusedMinutes: 10,
+      pauseCount: 0,
+      inactiveSeconds: 0,
+      subject: 'General',
+      studyMode: 'custom',
+      plannedDurationMinutes: 45,
+      riskMode: false,
+      pauses: [],
+      date: new Date().toISOString().slice(0, 10),
+    };
+
+    useStore.setState({ activeSession });
+    localStorage.setItem('gl-active-session', JSON.stringify(activeSession));
+
+    (api.endSession as jest.Mock).mockRejectedValueOnce(new Error('Uplink failed'));
+
+    const { result } = renderHook(() => useSessionManager());
+
+    await act(async () => {
+      await result.current.handleEnd('Great focus', 0);
+    });
+
+    expect(useStore.getState().activeSession).toBeNull();
+    expect(localStorage.getItem('gl-active-session')).toBeNull();
+
+    const offlineQueue = JSON.parse(localStorage.getItem('study-tracker-offline-queue') || '[]');
+    expect(offlineQueue).toHaveLength(1);
+    expect(offlineQueue[0]).toMatchObject({
+      startedAt: activeSession.startedAt,
+      subject: 'General',
+      studyMode: 'custom',
+      notes: 'Great focus',
+      date: activeSession.date
+    });
+    expect(offlineQueue[0]).toHaveProperty('endedAt');
+    expect(offlineQueue[0]).toHaveProperty('focusedMinutes');
+
+    expect(useStore.getState().error).toContain('Uplink offline. Study session queued locally');
+  });
 });
