@@ -115,7 +115,8 @@ export const useStore = create<AppStore>()(
         studyMode: state.studyMode,
         plannedDuration: state.plannedDuration,
         riskMode: state.riskMode,
-        lastSyncAt: state.lastSyncAt
+        lastSyncAt: state.lastSyncAt,
+        currentRoom: state.currentRoom
       }),
     }
   )

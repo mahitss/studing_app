@@ -4,6 +4,29 @@ const User = require("../models/User");
 const { requireAuth } = require("../middleware/auth");
 const router = express.Router();
 
+/**
+ * Middleware to verify the authenticated user is a member of the target room.
+ * Attaches the room to req.room to avoid a second DB fetch in the route handler.
+ */
+const requireMembership = async (req, res, next) => {
+  try {
+    const room = await StudyRoom.findById(req.params.roomId).lean();
+    if (!room) return res.status(404).json({ message: "Room not found" });
+
+    const isMember = (room.members || []).some(
+      (m) => m.toString() === req.auth.sub
+    );
+    if (!isMember) {
+      return res.status(403).json({ message: "Forbidden: you are not a member of this room" });
+    }
+
+    req.room = room;
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
 router.get("/", requireAuth, async (req, res, next) => {
   try {
     const { limit, page, name } = req.query;
@@ -71,7 +94,7 @@ router.post("/:roomId/join", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/:roomId/notes", requireAuth, async (req, res, next) => {
+router.post("/:roomId/notes", requireAuth, requireMembership, async (req, res, next) => {
   try {
     const { notes } = req.body;
     const room = await StudyRoom.findByIdAndUpdate(
@@ -91,7 +114,7 @@ router.post("/:roomId/notes", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/:roomId/vote-ambient", requireAuth, async (req, res, next) => {
+router.post("/:roomId/vote-ambient", requireAuth, requireMembership, async (req, res, next) => {
   try {
     const { trackId } = req.body;
     const room = await StudyRoom.findById(req.params.roomId);
@@ -113,7 +136,7 @@ router.post("/:roomId/vote-ambient", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/:roomId/alert", requireAuth, async (req, res, next) => {
+router.post("/:roomId/alert", requireAuth, requireMembership, async (req, res, next) => {
   try {
     const { type, message } = req.body;
     const user = await User.findById(req.auth.sub);
@@ -129,7 +152,7 @@ router.post("/:roomId/alert", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/:roomId/ai-qa", requireAuth, async (req, res, next) => {
+router.post("/:roomId/ai-qa", requireAuth, requireMembership, async (req, res, next) => {
   try {
     const { message } = req.body;
     const replies = [
@@ -150,7 +173,7 @@ router.post("/:roomId/ai-qa", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/:roomId/bet", requireAuth, async (req, res, next) => {
+router.post("/:roomId/bet", requireAuth, requireMembership, async (req, res, next) => {
   try {
     const { amount, outcome } = req.body;
     const user = await User.findById(req.auth.sub);

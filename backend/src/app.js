@@ -3,6 +3,9 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const routes = require("./routes");
 const rateLimit = require("express-rate-limit");
+const helmet = require("helmet");
+const mongoSanitize = require("express-mongo-sanitize");
+const hpp = require("hpp");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -26,10 +29,23 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization", "Cookie"]
 };
 
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Managed separately for Next.js compatibility
+  crossOriginEmbedderPolicy: false
+}));
+
 app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(require("./middleware/requestLogger"));
 app.use(express.json({ limit: "10kb" }));
+app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+
+// Prevent HTTP Parameter Pollution
+app.use(hpp());
+
+// Strip MongoDB operator injections from req.body, req.query, req.params
+app.use(mongoSanitize({ replaceWith: "_" }));
 app.use(require("./middleware/sanitize"));
 
 const authLimiter = rateLimit({

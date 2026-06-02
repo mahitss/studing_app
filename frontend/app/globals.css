@@ -492,3 +492,190 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   mask-composite: exclude;
   pointer-events: none;
 }
+
+/* =========================================================
+   MICRO-INTERACTIONS & ANIMATIONS
+   ========================================================= */
+
+/* Button active press effect */
+.btn-primary:active {
+  transform: scale(0.97) translateY(0) !important;
+  box-shadow: 0 2px 8px var(--accent-glow) !important;
+  filter: brightness(0.95);
+}
+
+.btn-secondary:active,
+.btn-danger:active {
+  transform: scale(0.97) translateY(0) !important;
+}
+
+/* Ripple click effect on buttons */
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::after,
+.btn-secondary::after,
+.btn-danger::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+  opacity: 0;
+  transform: scale(0);
+  transition: transform 0.4s ease, opacity 0.4s ease;
+  border-radius: inherit;
+}
+
+.btn-primary:active::after,
+.btn-secondary:active::after,
+.btn-danger:active::after {
+  opacity: 1;
+  transform: scale(1);
+  transition: 0s;
+}
+
+/* Glass card hover lift with accent glow */
+.glass-card {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
+}
+
+.glass-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(62, 99, 221, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Nav button micro-interaction */
+.nav-btn {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-btn:hover {
+  transform: translateX(4px);
+}
+
+.nav-btn:active {
+  transform: translateX(2px) scale(0.98);
+}
+
+/* Icon spin on hover for interactive elements */
+@keyframes spin-once {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.hover\:spin-on-hover:hover > svg {
+  animation: spin-once 0.4s ease-in-out;
+}
+
+/* Glow pulse on active session indicator */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(62, 99, 221, 0.4), 0 0 16px rgba(62, 99, 221, 0.2); }
+  50% { box-shadow: 0 0 16px rgba(62, 99, 221, 0.7), 0 0 32px rgba(62, 99, 221, 0.35); }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s infinite ease-in-out;
+}
+
+/* Danger/running glow for active sessions */
+@keyframes danger-glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(229, 72, 77, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(229, 72, 77, 0.6); }
+}
+
+.animate-danger-glow {
+  animation: danger-glow-pulse 1.5s infinite ease-in-out;
+}
+
+/* Skeleton shimmer (overlay shimmer that works on any colored bg) */
+@keyframes skeleton-shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.10) 50%,
+    rgba(255, 255, 255, 0.04) 75%
+  );
+  background-size: 400px 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+/* Floating entrance animation */
+@keyframes float-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-float-up {
+  animation: float-up 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* Staggered float-up for lists */
+.stagger-item {
+  opacity: 0;
+  animation: float-up 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.stagger-item:nth-child(1) { animation-delay: 0.05s; }
+.stagger-item:nth-child(2) { animation-delay: 0.10s; }
+.stagger-item:nth-child(3) { animation-delay: 0.15s; }
+.stagger-item:nth-child(4) { animation-delay: 0.20s; }
+.stagger-item:nth-child(5) { animation-delay: 0.25s; }
+.stagger-item:nth-child(6) { animation-delay: 0.30s; }
+
+/* Success flash animation */
+@keyframes success-flash {
+  0% { background-color: transparent; }
+  30% { background-color: rgba(48, 164, 108, 0.12); }
+  100% { background-color: transparent; }
+}
+
+.animate-success-flash {
+  animation: success-flash 0.8s ease-out;
+}
+
+/* Text shimmer for premium headings */
+@keyframes text-shimmer {
+  0% { background-position: -100% center; }
+  100% { background-position: 200% center; }
+}
+
+.text-shimmer {
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #a5a5b2 30%,
+    #3e63dd 50%,
+    #a5a5b2 70%,
+    #ffffff 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: text-shimmer 4s linear infinite;
+}
+
+/* Drag-to-select prevention on interactive elements */
+button, .btn-primary, .btn-secondary, .btn-danger {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Focus ring for accessibility */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}

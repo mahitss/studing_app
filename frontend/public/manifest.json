@@ -4,18 +4,51 @@
   "description": "The Ultimate Productivity OS for Students",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#000000",
-  "theme_color": "#000000",
+  "theme_color": "#3e63dd",
+  "categories": ["productivity", "education", "lifestyle"],
   "icons": [
     {
       "src": "/images/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/images/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start Focus Session",
+      "short_name": "Focus",
+      "description": "Launch a new study session immediately",
+      "url": "/dashboard?view=timer",
+      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "View Dashboard",
+      "short_name": "Dashboard",
+      "description": "Open the neural mission dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "/images/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
+
