@@ -2,6 +2,7 @@ import json
 import os
 import traceback
 import threading
+import sqlite3
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
@@ -132,7 +133,9 @@ def analyze_sessions(payload: AnalyticsRequest):
 
     # Parse dates
     df['startedAt'] = pd.to_datetime(df['startedAt'])
-    if 'endedAt' in df.columns:
+    if 'endedAt' not in df.columns:
+        df['endedAt'] = pd.NaT
+    else:
         df['endedAt'] = pd.to_datetime(df['endedAt'])
 
     # Total duration calculation (custom since we need exact time excluding inactive)
@@ -206,8 +209,8 @@ def analyze_sessions(payload: AnalyticsRequest):
             le_day = LabelEncoder()
             df['day_encoded'] = le_day.fit_transform(df['weekday'])
             
-            X = df[['day_encoded', 'hour']]
-            y = df['focusedMinutes']
+            X = df[['day_encoded', 'hour']].values
+            y = df['focusedMinutes'].values
             
             rf = RandomForestRegressor(n_estimators=50, random_state=42)
             rf.fit(X, y)
@@ -300,57 +303,69 @@ class MatchmakingRequest(BaseModel):
     targetMinutes: int
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
-# Absolute path to matchmaking pool
+# Absolute path to matchmaking pool database
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-POOL_FILE = os.path.join(SCRIPT_DIR, "matchmaking_pool.json")
+DB_FILE = os.path.join(SCRIPT_DIR, "matchmaking_pool.db")
 pool_lock = threading.Lock()
+
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS pool (
+                userId TEXT PRIMARY KEY,
+                timezone TEXT,
+                studyMode TEXT,
+                targetMinutes INTEGER
+            )
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+init_db()
 
 @app.post("/matchmake", dependencies=[Depends(verify_token)])
 def matchmake_users(req: MatchmakingRequest):
     with pool_lock:
-        active_pool = []
-        if os.path.exists(POOL_FILE):
-            try:
-                with open(POOL_FILE, "r") as f:
-                    active_pool = json.load(f)
-            except:
-                active_pool = []
-        
-        best_match = None
-        for candidate in active_pool:
-            if candidate["userId"] != req.userId and candidate["studyMode"] == req.studyMode:
+        conn = sqlite3.connect(DB_FILE)
+        conn.row_factory = sqlite3.Row
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            cursor = conn.cursor()
+            
+            # Query candidates with the same studyMode excluding self
+            cursor.execute(
+                "SELECT userId, timezone, studyMode, targetMinutes FROM pool WHERE userId != ? AND studyMode = ?",
+                (req.userId, req.studyMode)
+            )
+            candidates = cursor.fetchall()
+            
+            best_match = None
+            for candidate in candidates:
                 if abs(candidate["targetMinutes"] - req.targetMinutes) <= 30:
                     best_match = candidate
                     break
-        
-        if best_match:
-            active_pool.remove(best_match)
-            temp_file = POOL_FILE + ".tmp"
-            try:
-                with open(temp_file, "w") as f:
-                    json.dump(active_pool, f)
-                os.replace(temp_file, POOL_FILE)
-            except Exception as e:
-                if os.path.exists(temp_file):
-                    os.remove(temp_file)
-            return {"matchFound": True, "partnerId": best_match["userId"], "message": "Optimal partner located."}
-        
-        active_pool = [u for u in active_pool if u["userId"] != req.userId]
-        active_pool.append({
-            "userId": req.userId,
-            "timezone": req.timezone,
-            "studyMode": req.studyMode,
-            "targetMinutes": req.targetMinutes
-        })
-        temp_file = POOL_FILE + ".tmp"
-        try:
-            with open(temp_file, "w") as f:
-                json.dump(active_pool, f)
-            os.replace(temp_file, POOL_FILE)
+            
+            if best_match:
+                # Remove matched partner and self (if existing) from the pool
+                conn.execute("DELETE FROM pool WHERE userId = ?", (best_match["userId"],))
+                conn.execute("DELETE FROM pool WHERE userId = ?", (req.userId,))
+                conn.commit()
+                return {"matchFound": True, "partnerId": best_match["userId"], "message": "Optimal partner located."}
+            
+            # If no match found, insert/replace self in the pool
+            conn.execute(
+                "INSERT OR REPLACE INTO pool (userId, timezone, studyMode, targetMinutes) VALUES (?, ?, ?, ?)",
+                (req.userId, req.timezone, req.studyMode, req.targetMinutes)
+            )
+            conn.commit()
+            return {"matchFound": False, "message": "Entering matchmaking pool. Awaiting optimal partner..."}
         except Exception as e:
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
-        return {"matchFound": False, "message": "Entering matchmaking pool. Awaiting optimal partner..."}
+            conn.rollback()
+            raise HTTPException(status_code=500, detail=f"Database error during matchmaking: {str(e)}")
+        finally:
+            conn.close()
 
 if __name__ == "__main__":
     import uvicorn

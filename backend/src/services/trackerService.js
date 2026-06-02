@@ -15,9 +15,19 @@ const ensureDailyGoal = async (userId, date = todayKey(), dbSession = null) => {
   if (!goal) {
     const user = await User.findById(userId).session(dbSession);
     const dailyMinutes = user?.goalConfig?.dailyMinutes || 180;
-    const created = await DailyGoal.create([{ userId, date, targetMinutes: dailyMinutes }], { session: dbSession });
-    if (!created || !created[0]) throw new Error("Daily goal creation failed.");
-    goal = created[0];
+    try {
+      const created = await DailyGoal.create([{ userId, date, targetMinutes: dailyMinutes }], { session: dbSession });
+      if (!created || !created[0]) throw new Error("Daily goal creation failed.");
+      goal = created[0];
+    } catch (err) {
+      if (err.code === 11000 || err.message?.includes("E11000")) {
+        // Concurrency fallback: another request created it in the meantime, fetch it
+        goal = await DailyGoal.findOne({ userId, date }).session(dbSession);
+        if (!goal) throw new Error("Daily goal fetching failed after concurrent write.");
+      } else {
+        throw err;
+      }
+    }
   }
   return goal;
 };
