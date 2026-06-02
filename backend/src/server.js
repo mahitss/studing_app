@@ -38,28 +38,44 @@ const io = new Server(server, {
   }
 });
 
+const cookie = require("cookie");
+const mongoose = require("mongoose");
+
 server.on("error", (err) => {
   logger.error(`[GrindLock] Server critical error: ${err.message}`);
   if (err.code === "EADDRINUSE") {
     logger.error(`[GrindLock] Port ${PORT} is already occupied. Neural grid collision.`);
   }
+  try {
+    io.emit("error", { message: "Critical server error. Neural link disconnected." });
+  } catch (ioErr) {}
+  process.exit(1);
 });
 
-// Socket.io JWT authentication middleware
-const parseCookies = (cookieString) => {
-  const cookies = {};
-  if (!cookieString) return cookies;
-  cookieString.split(";").forEach((cookie) => {
-    const parts = cookie.split("=");
-    const name = parts[0].trim();
-    const value = parts.slice(1).join("=").trim();
-    if (name) {
-      cookies[name] = decodeURIComponent(value);
-    }
+const gracefulShutdown = (signal) => {
+  logger.info(`[GrindLock] Received ${signal}. Initializing graceful shutdown sequence...`);
+  try {
+    io.emit("error", { message: "Server shutting down. Re-establishing link soon." });
+  } catch (e) {}
+
+  server.close(() => {
+    logger.info("[GrindLock] HTTP server closed.");
+    mongoose.connection.close(false, () => {
+      logger.info("[GrindLock] MongoDB connection closed.");
+      process.exit(0);
+    });
   });
-  return cookies;
+
+  setTimeout(() => {
+    logger.error("[GrindLock] Graceful shutdown timed out. Forcing exit.");
+    process.exit(1);
+  }, 10000);
 };
 
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
+// Socket.io JWT authentication middleware
 const jwt = require("jsonwebtoken");
 
 io.use((socket, next) => {
@@ -71,7 +87,7 @@ io.use((socket, next) => {
     if (!cookieHeader) {
       return next(new Error("Authentication error: No cookies found"));
     }
-    const cookies = parseCookies(cookieHeader);
+    const cookies = cookie.parse(cookieHeader);
     const token = cookies.authToken;
     if (!token) {
       return next(new Error("Authentication error: Token missing"));
@@ -88,6 +104,10 @@ app.set("io", io);
 
 io.on("connection", (socket) => {
   logger.info(`[GrindLock] Neural link established: ${socket.id}`);
+
+  socket.on("error", (err) => {
+    logger.error(`[GrindLock] Socket error on socket ${socket.id}: ${err.message || err}`);
+  });
   
   socket.on("authenticate", (userId) => {
     try {

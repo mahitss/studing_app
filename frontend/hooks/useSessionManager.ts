@@ -195,21 +195,23 @@ export function useSessionManager() {
     } catch (err: any) {
       // Offline fallback: save completed session to offline queue
       try {
-        const queue = JSON.parse(localStorage.getItem("study-tracker-offline-queue") || "[]");
-        queue.push({
-          startedAt: activeSession.startedAt,
-          endedAt: new Date().toISOString(),
-          focusedMinutes: Math.max(1, Math.round(elapsed / 60)),
-          inactiveSeconds: inactiveSeconds,
-          pauseCount: activeSession.pauseCount || 0,
-          subject: sessionSubject,
-          studyMode: sessionMode,
-          plannedDurationMinutes: sessionMinutes,
-          riskMode: sessionRisk,
-          notes: notesStr,
-          date: activeSession.date
-        });
-        localStorage.setItem("study-tracker-offline-queue", JSON.stringify(queue));
+        if (activeSession) {
+          const queue = JSON.parse(localStorage.getItem("study-tracker-offline-queue") || "[]");
+          queue.push({
+            startedAt: activeSession.startedAt,
+            endedAt: new Date().toISOString(),
+            focusedMinutes: Math.max(1, Math.round(elapsed / 60)),
+            inactiveSeconds: inactiveSeconds,
+            pauseCount: activeSession.pauseCount || 0,
+            subject: sessionSubject,
+            studyMode: sessionMode,
+            plannedDurationMinutes: sessionMinutes,
+            riskMode: sessionRisk,
+            notes: notesStr,
+            date: activeSession.date
+          });
+          localStorage.setItem("study-tracker-offline-queue", JSON.stringify(queue));
+        }
       } catch (e) {
         console.warn("Failed to queue offline session:", e);
       }

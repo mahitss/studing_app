@@ -11,9 +11,13 @@ export const HAS_BACKEND =
   localStorage.getItem("study-tracker-pref-mock") !== "true" && 
   (process.env.NEXT_PUBLIC_DEMO_MODE !== "true");
 
-const API_BASE_RAW = (process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "development" ? "http://localhost:5000/api" : "")).trim();
+const DEFAULT_API_BASE = typeof window !== "undefined"
+  ? `${window.location.protocol}//${window.location.hostname}:5000/api`
+  : "http://localhost:5000/api";
+
+const API_BASE_RAW = (process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE).trim();
 const API_BASE = API_BASE_RAW.replace(/\/+$/, "");
-const SOCKET_URL = API_BASE ? API_BASE.replace(/\/api$/, "") : "";
+const SOCKET_URL = API_BASE.replace(/\/api$/, "");
 
 export const socket = io(SOCKET_URL, {
   autoConnect: false,
@@ -82,84 +86,89 @@ async function request<T>(path: string, init?: RequestInit, retries = 3): Promis
     return mockRequest<T>(path, init);
   }
 
-  const executeRequest = async (attempt: number): Promise<T> => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const executeRequest = async (attempt: number): Promise<T> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        if (!controller.signal.aborted) {
+          controller.abort();
+        }
+      }, 12000);
 
-    try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("study-tracker-auth-token") : null;
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        ...(init?.headers as Record<string, string> || {})
-      };
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
+      try {
+        const token = typeof window !== "undefined" ? localStorage.getItem("study-tracker-auth-token") : null;
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          ...(init?.headers as Record<string, string> || {})
+        };
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
 
-      const fullUrl = `${API_BASE}${path}`.replace(/([^:]\/)\/+/g, "$1");
-      const res = await fetch(fullUrl, {
-        ...init,
-        signal: controller.signal,
-        credentials: "include",
-        headers,
-        cache: "no-store"
-      });
-      clearTimeout(timeoutId);
+        const fullUrl = `${API_BASE}${path}`.replace(/([^:]\/)\/+/g, "$1");
+        const res = await fetch(fullUrl, {
+          ...init,
+          signal: controller.signal,
+          credentials: "include",
+          headers,
+          cache: "no-store"
+        });
+        clearTimeout(timeoutId);
 
-      if (res.status === 401 && path !== "/auth/refresh" && path !== "/auth/login" && path !== "/auth/register" && path !== "/users/bootstrap") {
-        try {
-          const newToken = await refreshAuthToken();
-          // Retry request with new token
-          headers["Authorization"] = `Bearer ${newToken}`;
-          const retryRes = await fetch(fullUrl, {
-            ...init,
-            credentials: "include",
-            headers,
-            cache: "no-store"
-          });
-          if (!retryRes.ok) {
-            const errorData = await retryRes.json().catch(() => ({}));
-            let errMsg = errorData.error?.message || errorData.message || `API Error ${retryRes.status}`;
-            const error = new Error(errMsg);
-            (error as any).status = retryRes.status;
+        if (res.status === 401 && path !== "/auth/refresh" && path !== "/auth/login" && path !== "/auth/register" && path !== "/users/bootstrap") {
+          try {
+            const newToken = await refreshAuthToken();
+            // Retry request with new token
+            headers["Authorization"] = `Bearer ${newToken}`;
+            const retryRes = await fetch(fullUrl, {
+              ...init,
+              credentials: "include",
+              headers,
+              cache: "no-store"
+            });
+            if (!retryRes.ok) {
+              const errorData = await retryRes.json().catch(() => ({}));
+              let errMsg = errorData.error?.message || errorData.message || `API Error ${retryRes.status}`;
+              const error = new Error(errMsg);
+              (error as any).status = retryRes.status;
+              throw error;
+            }
+            return retryRes.json();
+          } catch (refreshErr) {
+            clearAuthSession();
+            const error = new Error("Session expired. Please log in again.");
+            (error as any).status = 401;
             throw error;
           }
-          return retryRes.json();
-        } catch (refreshErr) {
-          clearAuthSession();
-          const error = new Error("Session expired. Please log in again.");
-          (error as any).status = 401;
+        }
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          let errMsg = errorData.error?.message || errorData.message || `API Error ${res.status}`;
+          if (errorData.error?.details && Array.isArray(errorData.error.details)) {
+            const detailsStr = errorData.error.details.map((d: any) => d.message).join(", ");
+            if (detailsStr) {
+              errMsg = `${errMsg}: ${detailsStr}`;
+            }
+          }
+          const error = new Error(errMsg);
+          (error as any).status = res.status;
           throw error;
         }
-      }
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        let errMsg = errorData.error?.message || errorData.message || `API Error ${res.status}`;
-        if (errorData.error?.details && Array.isArray(errorData.error.details)) {
-          const detailsStr = errorData.error.details.map((d: any) => d.message).join(", ");
-          if (detailsStr) {
-            errMsg = `${errMsg}: ${detailsStr}`;
-          }
+        return res.json();
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        
+        const isTimeout = err.name === 'AbortError' && controller.signal.aborted;
+        let finalError = err;
+        if (isTimeout) {
+          finalError = new Error("Request timed out after 12 seconds.");
         }
-        const error = new Error(errMsg);
-        (error as any).status = res.status;
-        throw error;
-      }
-
-      return res.json();
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      
-      const isTimeout = err.name === 'AbortError' && controller.signal.aborted;
-      let finalError = err;
-      if (isTimeout) {
-        finalError = new Error("Request timed out after 12 seconds.");
-      }
-      
-      const isRetryableStatus = finalError.status
-        ? ![400, 401, 403, 404, 422].includes(finalError.status)
-        : true;
+        
+        const errStatus = (finalError as any).status;
+        const isRetryableStatus = errStatus !== undefined
+          ? ![400, 401, 403, 404, 422].includes(errStatus)
+          : true;
 
       if (attempt < retries && (isTimeout || isRetryableStatus)) {
         const delay = Math.pow(2, attempt) * 1000;

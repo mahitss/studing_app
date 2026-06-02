@@ -26,7 +26,22 @@ const loginSchema = z.object({
   })
 });
 
+const resetPasswordSchema = z.object({
+  body: z.object({
+    token: z.string().min(1, "Reset token is required"),
+    password: z.string()
+      .min(8, "Protocol key must be 8+ characters")
+      .refine((val) => {
+        const result = zxcvbn(val);
+        return result.score >= 3;
+      }, {
+        message: "Password is too weak. Choose a stronger key.",
+      })
+  })
+});
+
 module.exports = {
   registerSchema,
-  loginSchema
+  loginSchema,
+  resetPasswordSchema
 };

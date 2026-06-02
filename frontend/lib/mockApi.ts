@@ -222,6 +222,7 @@ export async function mockRequest<T>(path: string, init?: RequestInit): Promise<
   const method = (init?.method || "GET").toUpperCase();
   const body = init?.body ? JSON.parse(String(init.body)) : {};
   const store = loadStore();
+  path = path.split('?')[0];
 
   if (path === "/users/bootstrap" && method === "POST") {
     const user: User = {
@@ -252,6 +253,9 @@ export async function mockRequest<T>(path: string, init?: RequestInit): Promise<
   }
 
   if (path === "/auth/login" && method === "POST") {
+    if (!body.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
+      throw new Error("Invalid email format");
+    }
     if (store.user && store.user.email) {
       if (body.email?.toLowerCase() !== store.user.email.toLowerCase() || body.password !== (store.password || "")) {
         throw new Error("Invalid credentials");

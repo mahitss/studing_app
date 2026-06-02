@@ -102,7 +102,7 @@ export const useStore = create<AppStore>()(
       riskMode: false,
       setRiskMode: (riskMode) => set({ riskMode }),
       
-      lastSyncAt: Date.now(),
+      lastSyncAt: 0,
       setLastSyncAt: (lastSyncAt) => set({ lastSyncAt }),
     }),
     {

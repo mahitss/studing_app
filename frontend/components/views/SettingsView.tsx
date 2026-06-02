@@ -144,6 +144,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
               }`}
               {...registerGoal("goalDaily", { valueAsNumber: true })}
               aria-label="Daily mission target in minutes"
+              aria-invalid={goalErrors.goalDaily ? "true" : "false"}
             />
             {goalErrors.goalDaily?.message && (
               <p className="text-red-400 text-[10px] uppercase font-bold tracking-wider">
@@ -162,6 +163,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
               }`}
               {...registerGoal("goalWeekly", { valueAsNumber: true })}
               aria-label="Weekly mission quota in minutes"
+              aria-invalid={goalErrors.goalWeekly ? "true" : "false"}
             />
             {goalErrors.goalWeekly?.message && (
               <p className="text-red-400 text-[10px] uppercase font-bold tracking-wider">
@@ -182,7 +184,11 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             <label className="text-[10px] font-black uppercase tracking-widest text-muted">
               Commitment Level
             </label>
-            <select className="w-full bg-white/5 border-white/10" {...registerIdentity("identityType")}>
+            <select
+              className="w-full bg-white/5 border-white/10"
+              {...registerIdentity("identityType")}
+              aria-invalid={identityErrors.identityType ? "true" : "false"}
+            >
               <option value="Casual">Casual</option>
               <option value="Serious">Serious</option>
               <option value="Hardcore">Hardcore</option>
@@ -203,6 +209,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
               }`}
               {...registerIdentity("motivationWhy")}
               rows={3}
+              aria-invalid={identityErrors.motivationWhy ? "true" : "false"}
             />
             {identityErrors.motivationWhy?.message && (
               <p className="text-red-400 text-[10px] uppercase font-bold tracking-wider">
@@ -231,6 +238,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                   emailErrors.summaryEmail ? "border-red-500/50" : ""
                 }`}
                 {...registerEmail("summaryEmail")}
+                aria-invalid={emailErrors.summaryEmail ? "true" : "false"}
               />
               {emailErrors.summaryEmail?.message && (
                 <p className="text-red-400 text-[10px] uppercase font-bold tracking-wider">

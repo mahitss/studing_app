@@ -182,7 +182,6 @@ export default function StudyTrackerApp() {
   const [timerAlert, setTimerAlert] = useState("");
   const [goalDaily, setGoalDaily] = useState(180);
   const [goalWeekly, setGoalWeekly] = useState(1200);
-  const [goalSessions, setGoalSessions] = useState(7);
   const [summaryEmail, setSummaryEmail] = useState("");
   const [emailStatus, setEmailStatus] = useState("");
   const [identityType, setIdentityType] = useState<"Casual" | "Serious" | "Hardcore">("Serious");
@@ -222,12 +221,11 @@ export default function StudyTrackerApp() {
   }, [ambientTrack]);
 
   const hiddenAt = useRef<number | null>(null);
-  const lastActivityAt = useRef<number>(Date.now());
 
   const userKey = "study-tracker-user-id";
   const authTokenKey = "study-tracker-auth-token";
   const settingsKey = "study-tracker-settings";
-  const offlineQueueKey = "study-tracker-offline-session-queue";
+  const offlineQueueKey = "study-tracker-offline-queue";
   const ritualKey = `study-tracker-ritual-${new Date().toISOString().slice(0, 10)}`;
 
   const refreshAll = useCallback(async (userId: string) => {
@@ -261,7 +259,6 @@ export default function StudyTrackerApp() {
         setUser(dash.user);
         setGoalDaily(dash.goalTypes.dailyMinutes);
         setGoalWeekly(dash.goalTypes.weeklyTargetMinutes);
-        setGoalSessions(dash.goalTypes.weeklySessionTarget);
         setIdentityType(dash.identity.type);
         if (dash.user.email && !summaryEmail) setSummaryEmail(dash.user.email);
       } else if (dashRes.status === "rejected") {
@@ -302,7 +299,7 @@ export default function StudyTrackerApp() {
     } catch (err: any) {
       setError("Critical telemetry failure. Protocol: Manual Refresh.");
     }
-  }, [setDashboard, setUser, setGoalDaily, setGoalWeekly, setGoalSessions, setIdentityType, summaryEmail, setSummaryEmail, setError, setSessions, setActiveSession, setSubject, setStudyMode, setPlannedDuration, setRiskMode, setLiveFriends, setLiveMessage, setLastSyncAt]);
+  }, [setDashboard, setUser, setGoalDaily, setGoalWeekly, setIdentityType, summaryEmail, setSummaryEmail, setError, setSessions, setActiveSession, setSubject, setStudyMode, setPlannedDuration, setRiskMode, setLiveFriends, setLiveMessage, setLastSyncAt]);
 
   const handleManualOffline = () => {
     localStorage.setItem("study-tracker-pref-mock", "true");

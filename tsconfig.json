@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/frontend/*": ["frontend/*"],
+      "@/backend/*": ["backend/src/*"]
+    }
+  },
+  "exclude": ["node_modules", ".next", "dist"]
+}

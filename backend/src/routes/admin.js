@@ -1,13 +1,24 @@
 const express = require("express");
 const router = express.Router();
+const rateLimit = require("express-rate-limit");
 const User = require("../models/User");
 const AuditLog = require("../models/AuditLog");
 const { requireAuth } = require("../middleware/auth");
 const { requireRole } = require("../middleware/roleAuth");
 const { logAction } = require("../utils/auditLogger");
+const validate = require("../middleware/validate");
+const { updateRoleSchema, updateStatusSchema } = require("../validations/admin.validation");
 
-// Require admin role for all admin routes
-router.use(requireAuth, requireRole("admin"));
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: { message: "Too many admin requests. Neural dashboard throttled." },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Require admin rate limiting, authentication, and admin role for all admin routes
+router.use(adminLimiter, requireAuth, requireRole("admin"));
 
 // GET /admin/users - List users
 router.get("/users", async (req, res, next) => {
@@ -57,12 +68,9 @@ router.get("/users", async (req, res, next) => {
 });
 
 // PUT /admin/users/:userId/role - Change user role
-router.put("/users/:userId/role", async (req, res, next) => {
+router.put("/users/:userId/role", validate(updateRoleSchema), async (req, res, next) => {
   try {
     const { role } = req.body;
-    if (!["user", "admin"].includes(role)) {
-      return res.status(400).json({ message: "Invalid role specified" });
-    }
 
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -85,12 +93,9 @@ router.put("/users/:userId/role", async (req, res, next) => {
 });
 
 // PUT /admin/users/:userId/status - Change active status (ban / unban)
-router.put("/users/:userId/status", async (req, res, next) => {
+router.put("/users/:userId/status", validate(updateStatusSchema), async (req, res, next) => {
   try {
     const { isActive } = req.body;
-    if (typeof isActive !== "boolean") {
-      return res.status(400).json({ message: "isActive must be a boolean" });
-    }
 
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ message: "User not found" });

@@ -915,7 +915,11 @@ const getLeaderboard = async (userId, filter = "global", limit = 100, page = 1) 
   if (filter === "friends" && userId) {
     const user = await User.findById(userId);
     if (user) {
-      const friendIds = (user.friends || []).map(id => id.toString());
+      const friendIds = (user.friends || []).map(id => {
+        if (!id) return null;
+        if (typeof id === "object" && id._id) return id._id.toString();
+        return id.toString();
+      }).filter(Boolean);
       friendIds.push(userId.toString());
       query._id = { $in: friendIds };
     }

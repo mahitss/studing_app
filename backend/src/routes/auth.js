@@ -7,8 +7,9 @@ const { JWT_SECRET, requireAuth } = require("../middleware/auth");
 const crypto = require("crypto");
 const emailService = require("../services/emailService");
 const validate = require("../middleware/validate");
-const { registerSchema, loginSchema } = require("../validations/auth.validation");
+const { registerSchema, loginSchema, resetPasswordSchema } = require("../validations/auth.validation");
 const { logAction } = require("../utils/auditLogger");
+const { signAccessToken, signRefreshToken, sanitizeUser } = require("../utils/userHelpers");
 
 const router = express.Router();
 
@@ -27,28 +28,6 @@ const passwordResetLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-
-const sanitizeUser = (userDoc) => {
-  const user = typeof userDoc.toObject === "function" ? userDoc.toObject() : { ...userDoc };
-  delete user.passwordHash;
-  delete user.authToken;
-  delete user.refreshToken;
-  return user;
-};
-
-const signAccessToken = (user) =>
-  jwt.sign(
-    { sub: String(user._id) },
-    JWT_SECRET,
-    { expiresIn: "15m" }
-  );
-
-const signRefreshToken = (user) =>
-  jwt.sign(
-    { sub: String(user._id) },
-    JWT_SECRET,
-    { expiresIn: "7d" }
-  );
 
 const setAuthCookies = (res, accessToken, refreshToken) => {
   res.cookie("authToken", accessToken, {
@@ -352,12 +331,9 @@ router.post("/forgot-password", passwordResetLimiter, async (req, res, next) => 
 });
 
 // POST /auth/reset-password - Perform password reset
-router.post("/reset-password", passwordResetLimiter, async (req, res, next) => {
+router.post("/reset-password", passwordResetLimiter, validate(resetPasswordSchema), async (req, res, next) => {
   try {
     const { token, password } = req.body;
-    if (!token || !password) {
-      return res.status(400).json({ message: "Token and new password are required" });
-    }
 
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
     const user = await User.findOne({

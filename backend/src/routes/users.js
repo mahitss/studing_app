@@ -23,19 +23,7 @@ const { startSessionSchema, endSessionSchema, offlineSyncSchema } = require("../
 const { logAction } = require("../utils/auditLogger");
 const { dispatchWebhook } = require("../utils/webhookDispatcher");
 
-const signAccessToken = (user) =>
-  jwt.sign(
-    { sub: String(user._id) },
-    JWT_SECRET,
-    { expiresIn: "15m" }
-  );
-
-const signRefreshToken = (user) =>
-  jwt.sign(
-    { sub: String(user._id) },
-    JWT_SECRET,
-    { expiresIn: "7d" }
-  );
+const { signAccessToken, signRefreshToken, sanitizeUser } = require("../utils/userHelpers");
 
 const setAuthCookies = (res, accessToken, refreshToken) => {
   res.cookie("authToken", accessToken, {
@@ -51,14 +39,6 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   });
-};
-
-const sanitizeUser = (userDoc) => {
-  const user = typeof userDoc.toObject === "function" ? userDoc.toObject() : { ...userDoc };
-  delete user.passwordHash;
-  delete user.authToken;
-  delete user.refreshToken;
-  return user;
 };
 
 // POST /users/bootstrap
@@ -298,6 +278,7 @@ router.get("/:userId/analytics", requireAuth, requireSelf, async (req, res, next
         port: url.port,
         path: url.pathname,
         method: 'POST',
+        timeout: 8000,
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(postData),
@@ -331,8 +312,12 @@ router.get("/:userId/analytics", requireAuth, requireSelf, async (req, res, next
         });
       });
 
+      proxyReq.on('timeout', () => {
+        proxyReq.destroy(new Error("Request timed out after 8 seconds"));
+      });
+
       proxyReq.on('error', (e) => {
-        // Fallback to Node-only analytics if Python service is down
+        // Fallback to Node-only analytics if Python service is down or timed out
         trackerService.dashboardForUser(userId).then(dashboard => {
           res.json({
             average_study_time: dashboard.deepAnalytics.averageSessionLength,
@@ -461,7 +446,7 @@ router.post("/:userId/sessions/:sessionId/end", requireAuth, requireSelf, sessio
     session.status = "completed";
     session.lastStartedAt = null;
     session.endedAt = now.toISOString();
-    session.focusedMinutes = Math.floor((session.elapsedSeconds || 0) / 60);
+    session.focusedMinutes = Math.round((session.elapsedSeconds || 0) / 60);
     
     const validInactive = Math.min(Math.max(0, inactiveSeconds || 0), session.elapsedSeconds || 0);
     session.inactiveSeconds = validInactive;
@@ -548,6 +533,37 @@ router.get("/:userId/export", requireAuth, requireSelf, async (req, res, next) =
     res.setHeader("Content-Disposition", `attachment; filename=study_tracker_export_${req.params.userId}.json`);
     res.setHeader("Content-Type", "application/json");
     res.json(exportData);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /users/:userId - Update user profile
+router.put("/:userId", requireAuth, requireSelf, async (req, res, next) => {
+  try {
+    const { name, email, college, identityType, motivationWhy } = req.body;
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (email && email.toLowerCase() !== user.email?.toLowerCase()) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ message: "Invalid email format" });
+      }
+      const existing = await User.findOne({ email: email.toLowerCase() });
+      if (existing) {
+        return res.status(400).json({ message: "Email is already in use by another user" });
+      }
+      user.email = email.toLowerCase();
+    }
+
+    if (name !== undefined) user.name = name;
+    if (college !== undefined) user.college = college;
+    if (identityType !== undefined) user.identityType = identityType;
+    if (motivationWhy !== undefined) user.motivationWhy = motivationWhy;
+
+    await user.save();
+    await logAction({ userId: user._id, action: "USER_PROFILE_UPDATE", req });
+    res.json({ message: "Profile updated successfully", user: sanitizeUser(user) });
   } catch (err) {
     next(err);
   }

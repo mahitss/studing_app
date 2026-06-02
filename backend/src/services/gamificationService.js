@@ -7,11 +7,11 @@ const logger = require("../utils/logger");
 
 // Seasonal Event Configuration
 const CURRENT_EVENT = {
-  active: true,
-  multiplier: 1.5,
-  name: "Spring Neural Surge",
-  // Dynamically set endDate to December 31st of the current year to prevent event expiration
-  endDate: new Date(new Date().getFullYear(), 11, 31, 23, 59, 59, 999)
+  active: process.env.SEASONAL_EVENT_ACTIVE === "true" || true,
+  multiplier: parseFloat(process.env.SEASONAL_EVENT_MULTIPLIER) || 1.5,
+  name: process.env.SEASONAL_EVENT_NAME || "Spring Neural Surge",
+  // Configurable seasonal event dates, falling back to a safe static date to prevent system clock exploits
+  endDate: process.env.SEASONAL_EVENT_END_DATE ? new Date(process.env.SEASONAL_EVENT_END_DATE) : new Date("2026-12-31T23:59:59.999Z")
 };
 
 async function awardAchievement(userId, criteriaType, value) {
@@ -90,12 +90,22 @@ async function updateChallengeProgress(userId, type, value) {
             rewardXp = Math.round(rewardXp * CURRENT_EVENT.multiplier);
           }
 
-          const updateOps = { $inc: { xp: rewardXp } };
-          if (challenge.rewardBadge) {
-            updateOps.$addToSet = { badges: challenge.rewardBadge };
+          const user = await User.findById(userId);
+          if (user) {
+            if (user.xp > Number.MAX_SAFE_INTEGER - rewardXp) {
+              user.xp = Number.MAX_SAFE_INTEGER;
+            } else {
+              user.xp += rewardXp;
+            }
+            // Recalculate level on User document before saving
+            user.level = Math.min(50, Math.floor((user.xp || 0) / 600) + 1);
+            
+            if (challenge.rewardBadge && !user.badges.includes(challenge.rewardBadge)) {
+              user.badges.push(challenge.rewardBadge);
+            }
+            await user.save();
+            logger.info(`User ${userId} completed challenge: ${challenge.title}. Rewarded ${rewardXp} XP. Level updated to ${user.level}.`);
           }
-          await User.updateOne({ _id: userId }, updateOps);
-          logger.info(`User ${userId} completed challenge: ${challenge.title}. Rewarded ${rewardXp} XP (Multiplier active: ${rewardXp > challenge.rewardXp}).`);
         }
         await challenge.save();
       }
@@ -111,6 +121,7 @@ async function updateChallengeProgress(userId, type, value) {
 
   } catch (err) {
     logger.error(`Error updating challenge progress: ${err.message}`);
+    throw err;
   }
 }
 

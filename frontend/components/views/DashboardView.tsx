@@ -24,8 +24,83 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, dashboard, goalDail
   ];
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-screen text-muted uppercase font-black tracking-widest text-xs">Synchronizing Neural Link...</div>;
+    return (
+      <div className="space-y-12 animate-pulse">
+        {/* Stats bar skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="glass-card p-6 border-white/5 space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-8 h-8 rounded-lg bg-white/10" />
+                <div className="h-2 w-24 bg-white/10 rounded" />
+              </div>
+              <div className="h-8 w-16 bg-white/10 rounded" />
+            </div>
+          ))}
+        </div>
+        
+        {/* Main layout skeleton */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-12">
+          <div className="xl:col-span-2 space-y-12">
+            <div className="glass-card p-8 border-white/5 space-y-6">
+              <div className="h-4 w-48 bg-white/10 rounded" />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
+                    <div className="h-3 w-20 bg-white/10 rounded" />
+                    <div className="h-1.5 w-full bg-black/40 rounded-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="glass-card p-8 border-white/5 space-y-4">
+              <div className="h-4 w-32 bg-white/10 rounded" />
+              <div className="space-y-3">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="h-12 w-full bg-white/5 rounded-xl" />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="space-y-12">
+            <div className="glass-card p-8 border-white/5 space-y-4">
+              <div className="h-4 w-32 bg-white/10 rounded" />
+              <div className="w-full aspect-square bg-white/5 rounded-2xl" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
+
+  const studiedMinutes = dashboard?.todayGoal?.studiedMinutes || 0;
+  const m1Target = Math.round(goalDaily / 6);
+  const m2Target = Math.round(goalDaily / 2);
+  const m3Target = goalDaily;
+
+  const milestones = [
+    {
+      label: "Neural Setup",
+      stageTarget: m1Target,
+      stageCurrent: Math.min(studiedMinutes, m1Target),
+      displayTarget: m1Target,
+      displayCurrent: Math.min(studiedMinutes, m1Target)
+    },
+    {
+      label: "Core Execution",
+      stageTarget: Math.max(1, m2Target - m1Target),
+      stageCurrent: Math.max(0, Math.min(studiedMinutes, m2Target) - m1Target),
+      displayTarget: m2Target,
+      displayCurrent: Math.min(studiedMinutes, m2Target)
+    },
+    {
+      label: "Final Validation",
+      stageTarget: Math.max(1, m3Target - m2Target),
+      stageCurrent: Math.max(0, studiedMinutes - m2Target),
+      displayTarget: m3Target,
+      displayCurrent: studiedMinutes
+    }
+  ];
 
   return (
     <div className="space-y-12">
@@ -61,20 +136,16 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, dashboard, goalDail
               <h2 className="text-xs font-black uppercase tracking-widest text-white/50">Mission Decomposition</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[
-                { label: "Neural Setup", target: Math.round(goalDaily / 6), current: dashboard?.todayGoal?.studiedMinutes || 0 },
-                { label: "Core Execution", target: Math.round(goalDaily / 2), current: dashboard?.todayGoal?.studiedMinutes || 0 },
-                { label: "Final Validation", target: goalDaily, current: dashboard?.todayGoal?.studiedMinutes || 0 },
-              ].map((m, idx) => (
-                <div key={idx} className={`p-4 rounded-xl border transition-all ${m.current >= m.target ? 'bg-success/10 border-success/30' : 'bg-white/5 border-white/10'}`}>
+              {milestones.map((m, idx) => (
+                <div key={idx} className={`p-4 rounded-xl border transition-all ${m.displayCurrent >= m.displayTarget ? 'bg-success/10 border-success/30' : 'bg-white/5 border-white/10'}`}>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-[10px] font-black uppercase tracking-widest">{m.label}</span>
-                    <span className={`text-[10px] font-black ${m.current >= m.target ? 'text-success' : 'text-white/40'}`}>{m.target}M</span>
+                    <span className={`text-[10px] font-black ${m.displayCurrent >= m.displayTarget ? 'text-success' : 'text-white/40'}`}>{m.displayTarget}M</span>
                   </div>
                   <div className="h-1.5 bg-black/40 rounded-full overflow-hidden">
                     <div 
-                      className={`h-full transition-all duration-1000 ${m.current >= m.target ? 'bg-success shadow-[0_0_10px_rgba(var(--success-rgb),0.5)]' : 'bg-white/20'}`}
-                      style={{ width: `${Math.min(100, (m.current / m.target) * 100)}%` }}
+                      className={`h-full transition-all duration-1000 ${m.displayCurrent >= m.displayTarget ? 'bg-success shadow-[0_0_10px_rgba(var(--success-rgb),0.5)]' : 'bg-white/20'}`}
+                      style={{ width: `${Math.min(100, (m.stageCurrent / m.stageTarget) * 100)}%` }}
                     />
                   </div>
                 </div>
