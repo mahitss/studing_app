@@ -279,6 +279,22 @@ export function useSessionManager() {
       finalElapsed += Math.max(0, delta);
     }
 
+    // Sync To-Do studied minutes
+    const storeState = useStore.getState();
+    const activeTodoId = storeState.activeTodoId;
+    const todos = storeState.todos;
+    const setTodos = storeState.setTodos;
+    const studiedMins = Math.max(1, Math.round(finalElapsed / 60));
+    if (activeTodoId) {
+      const updatedTodos = todos.map(todo => {
+        if (todo.id === activeTodoId) {
+          return { ...todo, studiedMinutes: (todo.studiedMinutes || 0) + studiedMins };
+        }
+        return todo;
+      });
+      setTodos(updatedTodos);
+    }
+
     // Optimistic UI update: clear session immediately for instant transitions
     setActiveSession(null);
     try {

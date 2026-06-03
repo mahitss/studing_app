@@ -4,6 +4,14 @@ import { User, Dashboard, StudySession, LiveFriend } from './types';
 
 export type Screen = "dashboard" | "timer" | "analytics" | "streak" | "colosseum" | "settings";
 
+export interface TodoItem {
+  id: string;
+  text: string;
+  completed: boolean;
+  createdAt: string;
+  studiedMinutes: number;
+}
+
 interface AppStore {
   // Authentication & User
   user: User | null;
@@ -50,6 +58,12 @@ interface AppStore {
   setPlannedDuration: (d: number) => void;
   riskMode: boolean;
   setRiskMode: (r: boolean) => void;
+  
+  // To-Do list
+  todos: TodoItem[];
+  setTodos: (todos: TodoItem[]) => void;
+  activeTodoId: string | null;
+  setActiveTodoId: (id: string | null) => void;
   
   // Misc
   lastSyncAt: number;
@@ -101,6 +115,11 @@ export const useStore = create<AppStore>()(
       setPlannedDuration: (plannedDuration) => set({ plannedDuration }),
       riskMode: false,
       setRiskMode: (riskMode) => set({ riskMode }),
+
+      todos: [],
+      setTodos: (todos) => set({ todos }),
+      activeTodoId: null,
+      setActiveTodoId: (activeTodoId) => set({ activeTodoId }),
       
       lastSyncAt: 0,
       setLastSyncAt: (lastSyncAt) => set({ lastSyncAt }),
@@ -116,7 +135,9 @@ export const useStore = create<AppStore>()(
         plannedDuration: state.plannedDuration,
         riskMode: state.riskMode,
         lastSyncAt: state.lastSyncAt,
-        currentRoom: state.currentRoom
+        currentRoom: state.currentRoom,
+        todos: state.todos,
+        activeTodoId: state.activeTodoId
       }),
     }
   )

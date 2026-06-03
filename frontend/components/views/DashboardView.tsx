@@ -1,12 +1,26 @@
-import React from "react";
-import { motion } from "framer-motion";
-import { TrendingUp, Target, Activity, Flame, MessageSquare, Brain, Plus } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  TrendingUp, 
+  Target, 
+  Activity, 
+  Flame, 
+  Brain, 
+  Plus, 
+  Shield, 
+  Users, 
+  Coffee, 
+  Calendar, 
+  X, 
+  Sparkle, 
+  Clock 
+} from "lucide-react";
 import { Dashboard, User } from "../../lib/types";
 import PetPanel from "../ui/PetPanel";
 import ChallengeList from "../ui/ChallengeList";
 import { BadgeGallery } from "../ui/BadgeGallery";
 import { StudyGroupPanel } from "../ui/StudyGroupPanel";
-import { Shield, Users, Award, Coffee } from "lucide-react";
+import TodoWidget from "../ui/TodoWidget";
 
 interface DashboardViewProps {
   user: User;
@@ -16,6 +30,22 @@ interface DashboardViewProps {
 
 const DashboardView: React.FC<DashboardViewProps> = ({ user, dashboard, goalDaily }) => {
   const isLoading = !dashboard;
+  const [activeTab, setActiveTab] = useState<"overview" | "history">("overview");
+  const [isClosed, setIsClosed] = useState(false);
+
+  // Sync collapsed state to localStorage
+  useEffect(() => {
+    const closedPref = localStorage.getItem("grindlock-dashboard-collapsed");
+    if (closedPref === "true") {
+      setIsClosed(true);
+    }
+  }, []);
+
+  const handleSetClosed = (val: boolean) => {
+    setIsClosed(val);
+    localStorage.setItem("grindlock-dashboard-collapsed", String(val));
+  };
+
   const stats = [
     { label: "Neural XP", value: dashboard?.gamification?.xp || user.xp || 0, icon: <TrendingUp size={20} />, color: "text-accent" },
     { label: "Neural Level", value: dashboard?.gamification?.level || user.level || 1, icon: <Activity size={20} />, color: "text-success" },
@@ -53,22 +83,36 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, dashboard, goalDail
                 ))}
               </div>
             </div>
-            <div className="glass-card p-8 border-white/5 space-y-4">
-              <div className="h-4 w-32 bg-white/10 rounded" />
-              <div className="space-y-3">
-                {Array.from({ length: 2 }).map((_, i) => (
-                  <div key={i} className="h-12 w-full bg-white/5 rounded-xl" />
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="space-y-12">
-            <div className="glass-card p-8 border-white/5 space-y-4">
-              <div className="h-4 w-32 bg-white/10 rounded" />
-              <div className="w-full aspect-square bg-white/5 rounded-2xl" />
-            </div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // Collapsed / Minimal Dashboard view
+  if (isClosed) {
+    return (
+      <div className="flex items-center justify-center py-20 px-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={() => handleSetClosed(false)}
+          className="glass-card p-12 text-center border-accent/20 cursor-pointer max-w-md w-full relative overflow-hidden group shadow-[0_0_50px_rgba(123,97,255,0.05)] bg-[#050507]"
+        >
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-accent to-transparent animate-pulse" />
+          <div className="p-4 bg-accent/10 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6 text-accent group-hover:scale-110 transition-transform">
+            <Activity size={28} className="animate-pulse" />
+          </div>
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-accent mb-2">Neural Link Collapsed</h3>
+          <p className="text-[10px] text-muted uppercase tracking-widest leading-relaxed mb-6 font-bold">
+            Dashboard interface offline. Tap capsule to re-engage synchronization protocol.
+          </p>
+          <div className="inline-flex items-center gap-2 text-[10px] font-black text-white/50 uppercase tracking-widest bg-white/5 px-4 py-2 rounded-xl border border-white/5 group-hover:text-white group-hover:border-accent/30 group-hover:bg-accent/5 transition-all">
+            <Sparkle size={10} className="animate-spin" /> Establish Neural Link
+          </div>
+        </motion.div>
       </div>
     );
   }
@@ -111,7 +155,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, dashboard, goalDail
             key={i} 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
+            transition={{ delay: i * 0.05 }}
             className="glass-card p-6 relative overflow-hidden"
           >
             <div className="flex items-center gap-4 mb-4 relative z-10">
@@ -126,147 +170,296 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, dashboard, goalDail
         ))}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-12">
-        {/* Left/Center Column: Challenges & Analytics */}
-        <div className="xl:col-span-2 space-y-12">
-          {/* Micro-Challenges (Goal Decomposition) */}
-          <section className="glass-card p-8 border-white/5">
-            <div className="flex items-center gap-3 mb-8">
-              <Shield className="text-accent" size={20} />
-              <h2 className="text-xs font-black uppercase tracking-widest text-white/50">Mission Decomposition</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {milestones.map((m, idx) => (
-                <div key={idx} className={`p-4 rounded-xl border transition-all ${m.displayCurrent >= m.displayTarget ? 'bg-success/10 border-success/30' : 'bg-white/5 border-white/10'}`}>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest">{m.label}</span>
-                    <span className={`text-[10px] font-black ${m.displayCurrent >= m.displayTarget ? 'text-success' : 'text-white/40'}`}>{m.displayTarget}M</span>
-                  </div>
-                  <div className="h-1.5 bg-black/40 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full transition-all duration-1000 ${m.displayCurrent >= m.displayTarget ? 'bg-success shadow-[0_0_10px_rgba(var(--success-rgb),0.5)]' : 'bg-white/20'}`}
-                      style={{ width: `${Math.min(100, (m.stageCurrent / m.stageTarget) * 100)}%` }}
-                    />
-                  </div>
+      {/* Tab Selector & Collapse Action */}
+      <div className="flex items-center justify-between border-b border-white/5 pb-4">
+        <div className="flex gap-8">
+          <button
+            onClick={() => setActiveTab("overview")}
+            className={`pb-2 text-xs font-black uppercase tracking-widest border-b-2 transition-all relative ${
+              activeTab === "overview"
+                ? "border-accent text-white"
+                : "border-transparent text-muted hover:text-white"
+            }`}
+          >
+            Overview
+            {activeTab === "overview" && (
+              <motion.div layoutId="activeTabGlow" className="absolute bottom-[-2px] left-0 w-full h-[2px] bg-accent shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`pb-2 text-xs font-black uppercase tracking-widest border-b-2 transition-all relative ${
+              activeTab === "history"
+                ? "border-accent text-white"
+                : "border-transparent text-muted hover:text-white"
+            }`}
+          >
+            Study History
+            {activeTab === "history" && (
+              <motion.div layoutId="activeTabGlow" className="absolute bottom-[-2px] left-0 w-full h-[2px] bg-accent shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" />
+            )}
+          </button>
+        </div>
+        <button
+          onClick={() => handleSetClosed(true)}
+          className="p-2 bg-white/5 border border-white/5 hover:bg-white/10 text-muted hover:text-white rounded-xl transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 min-h-[44px] min-w-[120px] justify-center"
+          title="Collapse Dashboard"
+        >
+          <X size={12} /> Collapse Link
+        </button>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {activeTab === "overview" ? (
+          <motion.div
+            key="overview"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.3 }}
+            className="grid grid-cols-1 xl:grid-cols-3 gap-12"
+          >
+            {/* Left/Center Column: Challenges & Tasks */}
+            <div className="xl:col-span-2 space-y-12">
+              {/* Micro-Challenges (Goal Decomposition) */}
+              <section className="glass-card p-8 border-white/5">
+                <div className="flex items-center gap-3 mb-8">
+                  <Shield className="text-accent" size={20} />
+                  <h2 className="text-xs font-black uppercase tracking-widest text-white/50">Mission Decomposition</h2>
                 </div>
-              ))}
-            </div>
-          </section>
-
-          <section aria-labelledby="challenges-heading">
-            <h2 id="challenges-heading" className="sr-only">Active Challenges</h2>
-            <ChallengeList challenges={dashboard?.challenges || []} />
-          </section>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-             <BadgeGallery achievements={user.achievements || []} />
-             <StudyGroupPanel groups={dashboard?.groups || []} />
-          </div>
-
-          {/* AI Coach Suggestion Card */}
-          <div className="glass-card p-8 bg-gradient-to-r from-accent/10 via-transparent to-transparent border-accent/20">
-            <div className="flex items-start gap-6">
-              <div className="p-4 bg-accent/20 rounded-2xl">
-                <Brain size={32} className="text-accent" />
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-accent">Neural Advisor Feedback</h3>
-                  {dashboard?.breakSuggestions && (
-                    <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
-                      <Coffee size={12} className="text-warning" />
-                      <span className="text-[9px] font-black uppercase tracking-widest text-warning">{dashboard.breakSuggestions}</span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {milestones.map((m, idx) => (
+                    <div key={idx} className={`p-4 rounded-xl border transition-all ${m.displayCurrent >= m.displayTarget ? 'bg-success/10 border-success/30' : 'bg-white/5 border-white/10'}`}>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest">{m.label}</span>
+                        <span className={`text-[10px] font-black ${m.displayCurrent >= m.displayTarget ? 'text-success' : 'text-white/40'}`}>{m.displayTarget}M</span>
+                      </div>
+                      <div className="h-1.5 bg-black/40 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full transition-all duration-1000 ${m.displayCurrent >= m.displayTarget ? 'bg-success shadow-[0_0_10px_rgba(var(--success-rgb),0.5)]' : 'bg-white/20'}`}
+                          style={{ width: `${Math.min(100, (m.stageCurrent / m.stageTarget) * 100)}%` }}
+                        />
+                      </div>
                     </div>
-                  )}
-                </div>
-                <div className="space-y-3">
-                  {(dashboard?.aiCoach || []).map((msg: string, i: number) => (
-                    <motion.div 
-                      key={i}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.5 + i * 0.1 }}
-                      className="flex items-center gap-3 text-xs font-bold text-white/80"
-                    >
-                      <div className="w-1 h-1 rounded-full bg-accent" />
-                      {msg}
-                    </motion.div>
                   ))}
                 </div>
+              </section>
+
+              {/* Tasks & Badges Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                 <TodoWidget />
+                 <BadgeGallery achievements={user.achievements || []} />
+              </div>
+
+              <section aria-labelledby="challenges-heading">
+                <h2 id="challenges-heading" className="sr-only">Active Challenges</h2>
+                <ChallengeList challenges={dashboard?.challenges || []} />
+              </section>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                 <StudyGroupPanel groups={dashboard?.groups || []} />
+                 {/* AI Coach Suggestion Card */}
+                 <div className="glass-card p-8 bg-gradient-to-r from-accent/10 via-transparent to-transparent border-accent/20 flex flex-col justify-center">
+                   <div className="flex items-start gap-6">
+                     <div className="p-4 bg-accent/20 rounded-2xl">
+                       <Brain size={32} className="text-accent" />
+                     </div>
+                     <div className="flex-1">
+                       <div className="flex justify-between items-center mb-4">
+                         <h3 className="text-xs font-black uppercase tracking-widest text-accent">Neural Advisor Feedback</h3>
+                         {dashboard?.breakSuggestions && (
+                           <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
+                             <Coffee size={12} className="text-warning" />
+                             <span className="text-[9px] font-black uppercase tracking-widest text-warning">{dashboard.breakSuggestions}</span>
+                           </div>
+                         )}
+                       </div>
+                       <div className="space-y-3">
+                         {(dashboard?.aiCoach || []).map((msg: string, i: number) => (
+                           <motion.div 
+                             key={i}
+                             initial={{ opacity: 0, x: 20 }}
+                             animate={{ opacity: 1, x: 0 }}
+                             transition={{ delay: i * 0.05 }}
+                             className="flex items-center gap-3 text-xs font-bold text-white/80"
+                           >
+                             <div className="w-1 h-1 rounded-full bg-accent" />
+                             {msg}
+                           </motion.div>
+                         ))}
+                       </div>
+                     </div>
+                   </div>
+                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Right Column: Pet & Mentorship */}
-        <div className="space-y-12">
-          <section aria-labelledby="pet-heading">
-            <h2 id="pet-heading" className="text-xs font-black uppercase tracking-widest text-muted mb-6 flex items-center gap-2">
-              <Activity size={14} className="text-success" /> Neural Companion
-            </h2>
-            <PetPanel pet={dashboard?.user?.pet || user.pet} xp={dashboard?.gamification?.xp || user.xp || 0} />
-          </section>
+            {/* Right Column: Pet & Mentorship */}
+            <div className="space-y-12">
+              <section aria-labelledby="pet-heading">
+                <h2 id="pet-heading" className="text-xs font-black uppercase tracking-widest text-muted mb-6 flex items-center gap-2">
+                  <Activity size={14} className="text-success" /> Neural Companion
+                </h2>
+                <PetPanel pet={dashboard?.user?.pet || user.pet} xp={dashboard?.gamification?.xp || user.xp || 0} />
+              </section>
 
-          {/* AI Mentorship Matching */}
-          <section className="glass-card p-8 border-white/5">
-            <div className="flex items-center gap-3 mb-6">
-              <Users className="text-primary" size={18} />
-              <h3 className="text-xs font-black uppercase tracking-widest text-white/50">Neural Mentors</h3>
-            </div>
-            <div className="space-y-4">
-              {(dashboard?.mentors || []).map((mentor, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:border-primary/30 transition-all">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-black border border-primary/30">
-                      {mentor.name[0]}
-                    </div>
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-widest">{mentor.name}</p>
-                      <p className="text-[9px] text-white/40 uppercase">Level {mentor.level} • {mentor.college}</p>
-                    </div>
-                  </div>
-                  <button className="p-1.5 hover:bg-white/10 rounded-lg text-primary transition-all">
-                    <Plus size={14} />
-                  </button>
+              {/* AI Mentorship Matching */}
+              <section className="glass-card p-8 border-white/5">
+                <div className="flex items-center gap-3 mb-6">
+                  <Users className="text-primary" size={18} />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-white/50">Neural Mentors</h3>
                 </div>
-              ))}
-              {(!dashboard?.mentors || dashboard.mentors.length === 0) && (
-                <p className="text-[10px] text-center italic text-white/20">Finding optimal matches...</p>
-              )}
-            </div>
-          </section>
+                <div className="space-y-4">
+                  {(dashboard?.mentors || []).map((mentor, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:border-primary/30 transition-all">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-black border border-primary/30">
+                          {mentor.name[0]}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-widest">{mentor.name}</p>
+                          <p className="text-[9px] text-white/40 uppercase">Level {mentor.level} • {mentor.college}</p>
+                        </div>
+                      </div>
+                      <button className="p-1.5 hover:bg-white/10 rounded-lg text-primary transition-all">
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  {(!dashboard?.mentors || dashboard.mentors.length === 0) && (
+                    <p className="text-[10px] text-center italic text-white/20">Finding optimal matches...</p>
+                  )}
+                </div>
+              </section>
 
-          <div className="glass-card p-8 text-center bg-white/5 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Flame size={40} className="text-warning" />
+              <div className="glass-card p-8 text-center bg-white/5 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <Flame size={40} className="text-warning" />
+                </div>
+                <h3 className="text-xs font-black uppercase tracking-widest text-muted mb-6">Neural Consistency (7D)</h3>
+                <div className="flex justify-center gap-3">
+                  {Array.from({ length: 7 }).map((_, i) => {
+                    const isCompleted = i < (dashboard?.streak?.current || 0);
+                    return (
+                      <div 
+                        key={i} 
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-black transition-all duration-500 ${
+                          isCompleted 
+                            ? 'bg-warning text-black shadow-[0_0_15px_rgba(245,158,11,0.3)] scale-110' 
+                            : 'bg-white/5 text-muted border border-white/5'
+                        }`}
+                        title={isCompleted ? "Protocol Fulfilled" : "Awaiting Synchronization"}
+                      >
+                        {isCompleted ? <Shield size={14} fill="currentColor" /> : i + 1}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mt-6">
+                  {dashboard?.streak?.current && dashboard.streak.current >= 7 
+                    ? "Neural Link Stabilized" 
+                    : `${7 - (dashboard?.streak?.current || 0)} Cycles to Stabilization`}
+                </p>
+              </div>
             </div>
-            <h3 className="text-xs font-black uppercase tracking-widest text-muted mb-6">Neural Consistency (7D)</h3>
-            <div className="flex justify-center gap-3">
-              {Array.from({ length: 7 }).map((_, i) => {
-                const isCompleted = i < (dashboard?.streak?.current || 0);
-                return (
+          </motion.div>
+        ) : (
+          <motion.div
+            key="history"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-12"
+          >
+            {/* History Stats Bar */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="glass-card p-6">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted">Total Hours</span>
+                <p className="display-sm text-3xl font-black text-accent mt-2">{dashboard?.totals?.totalStudyHours || 0} hrs</p>
+              </div>
+              <div className="glass-card p-6">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted">Completed Days</span>
+                <p className="display-sm text-3xl font-black text-success mt-2">{dashboard?.totals?.totalCompletedDays || 0} days</p>
+              </div>
+              <div className="glass-card p-6">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted">Missed Cycles</span>
+                <p className="display-sm text-3xl font-black text-danger mt-2">{dashboard?.totals?.totalMissedDays || 0} days</p>
+              </div>
+              <div className="glass-card p-6">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted">Compliance Rate</span>
+                <p className="display-sm text-3xl font-black text-warning mt-2">{dashboard?.complianceRate || 0}%</p>
+              </div>
+            </div>
+
+            {/* GitHub-style Contribution Heatmap */}
+            <section className="glass-card p-8 border-white/5">
+              <div className="flex items-center gap-3 mb-6">
+                <Calendar className="text-accent" size={18} />
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-widest text-white/80">Neural Study Map</h3>
+                  <p className="text-[9px] text-muted uppercase tracking-widest mt-0.5">60-Day Contribution Heatmap</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-10 sm:grid-cols-12 md:grid-cols-15 lg:grid-cols-20 gap-2 p-4 bg-black/20 rounded-2xl border border-white/5 justify-items-center">
+                {dashboard?.history?.map((day, i) => (
                   <div 
                     key={i} 
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-black transition-all duration-500 ${
-                      isCompleted 
-                        ? 'bg-warning text-black shadow-[0_0_15px_rgba(245,158,11,0.3)] scale-110' 
-                        : 'bg-white/5 text-muted border border-white/5'
+                    className={`w-6 h-6 rounded-md flex items-center justify-center transition-all hover:scale-110 hover:brightness-125 relative group cursor-pointer ${
+                      day.completionPercent >= 100
+                        ? "bg-success border border-success/40"
+                        : day.completionPercent >= 50
+                        ? "bg-warning/80 border border-warning/20"
+                        : day.completionPercent > 0
+                        ? "bg-accent/60 border border-accent/20"
+                        : "bg-white/5 border border-white/5"
                     }`}
-                    title={isCompleted ? "Protocol Fulfilled" : "Awaiting Synchronization"}
                   >
-                    {isCompleted ? <Shield size={14} fill="currentColor" /> : i + 1}
+                    {/* Tooltip popup on hover */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 rounded-xl bg-black border border-white/10 text-[9px] font-black uppercase tracking-widest text-white whitespace-nowrap shadow-2xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                      <p className="font-black text-white">{day.date}</p>
+                      <p className="text-accent mt-0.5">{day.studiedMinutes}m / {day.targetMinutes}m goal</p>
+                      <p className={`mt-0.5 ${day.completed ? "text-success" : "text-warning"}`}>
+                        {day.completionPercent}% {day.completed ? "Synchronized" : "Pending"}
+                      </p>
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-            <p className="text-[10px] font-bold text-muted uppercase tracking-widest mt-6">
-              {dashboard?.streak?.current && dashboard.streak.current >= 7 
-                ? "Neural Link Stabilized" 
-                : `${7 - (dashboard?.streak?.current || 0)} Cycles to Stabilization`}
-            </p>
-          </div>
-        </div>
-      </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Daily History Details List */}
+            <section className="glass-card p-8 border-white/5">
+              <div className="flex items-center gap-3 mb-6">
+                <Clock className="text-success" size={18} />
+                <h3 className="text-xs font-black uppercase tracking-widest text-white/80">Temporal Log Entries</h3>
+              </div>
+              <div className="space-y-3 overflow-y-auto max-h-[350px] pr-2 scrollbar-thin">
+                {dashboard?.history?.filter(h => h.studiedMinutes > 0).map((day, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-4 bg-white/5 border border-white/5 hover:border-white/10 rounded-xl transition-all">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest">
+                        {new Date(day.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </p>
+                      <p className="text-[9px] text-muted uppercase tracking-widest mt-0.5">Target: {day.targetMinutes}m</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-black text-accent">{day.studiedMinutes} min studied</p>
+                      <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase ${day.completed ? "bg-success/20 text-success" : "bg-warning/20 text-warning"}`}>
+                        {day.completionPercent}% {day.completed ? "Synchronized" : "Unfulfilled"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {(!dashboard?.history || dashboard.history.filter(h => h.studiedMinutes > 0).length === 0) && (
+                  <p className="text-[10px] text-center text-muted py-8 italic uppercase tracking-widest font-black">No study records synchronized.</p>
+                )}
+              </div>
+            </section>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

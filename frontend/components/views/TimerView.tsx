@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Timer as TimerIcon, Play, Pause, RefreshCw, AlertTriangle, Music } from "lucide-react";
+import { Timer as TimerIcon, Play, Pause, RefreshCw, AlertTriangle, Music, Target, Sparkle } from "lucide-react";
 import { StudySession } from "../../lib/types";
 import PomodoroTimer from "../ui/PomodoroTimer";
 import SpotifyPlayer from "../ui/SpotifyPlayer";
 import toast from "react-hot-toast";
+import { useStore } from "../../lib/store";
+import TodoWidget from "../ui/TodoWidget";
 
 interface TimerViewProps {
   activeSession: StudySession | null;
@@ -34,6 +36,9 @@ const TimerView: React.FC<TimerViewProps> = ({
   isActionLoading = false
 }) => {
   const [showMusic, setShowMusic] = useState(false);
+  const { todos, activeTodoId } = useStore();
+  const activeTodo = todos.find((t) => t.id === activeTodoId && !t.completed);
+
   const progress = plannedDuration > 0 ? (elapsed / (plannedDuration * 60)) * 100 : 0;
 
   useEffect(() => {
@@ -94,7 +99,23 @@ const TimerView: React.FC<TimerViewProps> = ({
         {activeSession?.studyMode === "pomodoro" && status !== "idle" ? (
           <PomodoroTimer onComplete={onPause} />
         ) : (
-          <div className="glass-card p-12 text-center">
+          <div className="glass-card p-12 text-center flex flex-col items-center justify-center relative overflow-hidden">
+            {/* Pulsing glow line top */}
+            {activeTodo && (
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-accent to-transparent animate-pulse" />
+            )}
+
+            {/* Active Todo Banner */}
+            {activeTodo && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-8 px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.05)] animate-pulse"
+              >
+                <Target size={12} className="animate-spin-slow" /> Focusing on: {activeTodo.text}
+              </motion.div>
+            )}
+
             <div className="relative inline-block mb-12">
               <svg className="w-full max-w-[320px] aspect-square -rotate-90" viewBox="0 0 320 320">
                 <circle cx="160" cy="160" r="150" className="stroke-white/5 fill-none" strokeWidth="8" />
@@ -178,6 +199,9 @@ const TimerView: React.FC<TimerViewProps> = ({
       </div>
 
       <div className="space-y-6">
+        {/* Synced To-Do Queue */}
+        <TodoWidget />
+
         <div className="glass-card p-6 border-accent/20">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xs font-black uppercase tracking-widest text-accent flex items-center gap-2">
