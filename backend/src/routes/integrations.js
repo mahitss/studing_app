@@ -11,7 +11,8 @@ const wearableSyncLimiter = rateLimit({
   keyGenerator: (req) => req.auth?.sub || req.ip,
   message: { message: "Wearable device data already synchronized. Limit: once per hour." },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  validate: { keyGeneratorIpFallback: false }
 });
 
 // Mock Calendar Sync
