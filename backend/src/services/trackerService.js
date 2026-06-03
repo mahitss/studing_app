@@ -3,10 +3,7 @@ const StudySession = require("../models/StudySession");
 const User = require("../models/User");
 const Challenge = require("../models/Challenge");
 const gamificationService = require("./gamificationService");
-
-const todayKey = () => {
-  return new Date().toISOString().slice(0, 10);
-};
+const { todayKey, yesterdayKey, getAdjustedDate } = require("../utils/dateUtils");
 
 const levelFromXp = (xp) => Math.min(50, Math.floor((xp || 0) / 600) + 1);
 
@@ -69,7 +66,7 @@ const streakFromGoals = (goals) => {
   }
 
   let current = 0;
-  const cursor = new Date();
+  const cursor = getAdjustedDate();
   for (;;) {
     const key = cursor.toISOString().slice(0, 10);
     const day = byDate.get(key);
@@ -87,14 +84,10 @@ const streakFromGoals = (goals) => {
   return { current, longest, missed };
 };
 
-const yesterdayKey = () => {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10);
-};
+// yesterdayKey is imported from dateUtils
 
 const weeklyMetrics = (goals, weeklyTargetMinutes = 1200) => {
-  const now = new Date();
+  const now = getAdjustedDate();
   const from = new Date(now);
   from.setDate(from.getDate() - 6);
   const fromKey = from.toISOString().slice(0, 10);
@@ -122,7 +115,7 @@ const weeklyMetrics = (goals, weeklyTargetMinutes = 1200) => {
 };
 
 const twoWeekSlices = (goals) => {
-  const now = new Date();
+  const now = getAdjustedDate();
   const startCurrent = new Date(now);
   startCurrent.setDate(startCurrent.getDate() - 6);
   const endPrevious = new Date(startCurrent);
@@ -170,7 +163,7 @@ const dailyHistory = (goals, days = 60) => {
   const output = [];
 
   for (let i = days - 1; i >= 0; i -= 1) {
-    const date = new Date();
+    const date = getAdjustedDate();
     date.setDate(date.getDate() - i);
     const key = date.toISOString().slice(0, 10);
     const day = byDate.get(key);
@@ -283,7 +276,7 @@ const roastLines = [
 ];
 
 const challengeProgress = (goals, sessions, streak) => {
-  const now = new Date();
+  const now = getAdjustedDate();
   const from = new Date(now);
   from.setDate(from.getDate() - 6);
   const fromKey = from.toISOString().slice(0, 10);
@@ -383,7 +376,7 @@ const identityMessaging = (identityType, completedToday) => {
 };
 
 const endOfDayReport = (todayGoal, streak) => {
-  const hour = new Date().getHours();
+  const hour = getAdjustedDate().getHours();
   if (hour < 21) {
     return { available: false, message: "" };
   }
@@ -455,7 +448,7 @@ const qualityBreakdown = (sessions) => {
 };
 
 const weeklyRealityReport = (goals) => {
-  const now = new Date();
+  const now = getAdjustedDate();
   const from = new Date(now);
   from.setDate(from.getDate() - 6);
   const fromKey = from.toISOString().slice(0, 10);
@@ -526,7 +519,7 @@ const weakDayDetection = (goals) => {
 };
 
 const lazyPattern = (sessions) => {
-  const now = new Date();
+  const now = getAdjustedDate();
   const from = new Date(now);
   from.setDate(from.getDate() - 6);
   const fromKey = from.toISOString().slice(0, 10);
@@ -556,7 +549,7 @@ const weeklySelfRank = (goals) => {
 };
 
 const monthlyProgress = (goals) => {
-  const now = new Date();
+  const now = getAdjustedDate();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
   const prevMonthDate = new Date(currentYear, currentMonth - 1, 1);
@@ -646,7 +639,7 @@ const comebackModeData = (goals, dailyMinutes) => {
 };
 
 const softLockData = (todayGoal, preferredTime) => {
-  const now = new Date();
+  const now = getAdjustedDate();
   const current = now.getHours() * 60 + now.getMinutes();
   const [h, m] = (preferredTime || "20:00").split(":").map(Number);
   const pref = (h * 60) + (m || 0);

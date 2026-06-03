@@ -35,8 +35,15 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
+const { timezoneStore } = require("./utils/timezoneStore");
+
 app.use(cors(corsOptions));
 app.use(cookieParser());
+app.use((req, res, next) => {
+  const offsetHeader = req.headers["x-timezone-offset"];
+  const offset = offsetHeader !== undefined ? parseInt(offsetHeader, 10) || 0 : 0;
+  timezoneStore.run(offset, next);
+});
 app.use(require("./middleware/requestLogger"));
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));

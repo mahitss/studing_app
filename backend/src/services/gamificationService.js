@@ -4,6 +4,7 @@ const Challenge = require("../models/Challenge");
 const StudySession = require("../models/StudySession");
 const Achievement = require("../models/Achievement");
 const logger = require("../utils/logger");
+const { todayKey, yesterdayKey, getAdjustedDate } = require("../utils/dateUtils");
 
 // Seasonal Event Configuration
 const CURRENT_EVENT = {
@@ -47,7 +48,7 @@ async function awardAchievement(userId, criteriaType, value) {
 }
 
 async function ensureDailyChallenges(userId) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
 
   const dailyTasks = [
     {
@@ -90,7 +91,7 @@ async function updateChallengeProgress(userId, type, value) {
           challenge.isCompleted = true;
 
           let rewardXp = challenge.rewardXp;
-          if (CURRENT_EVENT.active && new Date() < CURRENT_EVENT.endDate) {
+          if (CURRENT_EVENT.active && getAdjustedDate() < CURRENT_EVENT.endDate) {
             rewardXp = Math.round(rewardXp * CURRENT_EVENT.multiplier);
           }
 
@@ -130,7 +131,7 @@ async function updateChallengeProgress(userId, type, value) {
 }
 
 async function updateStreak(userId) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
   const user = await User.findById(userId);
   if (!user) return;
 
@@ -143,7 +144,7 @@ async function updateStreak(userId) {
 
   if (user.streak.lastActivityDate === today) return;
 
-  const yesterday = new Date();
+  const yesterday = getAdjustedDate();
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = yesterday.toISOString().slice(0, 10);
 

@@ -66,7 +66,7 @@ router.post("/register", authLimiter, validate(registerSchema), async (req, res,
     await logAction({ userId: user._id, action: "AUTH_REGISTER", req });
 
     setAuthCookies(res, accessToken, refreshToken);
-    res.status(201).json({ user: sanitizeUser(user), token: accessToken });
+    res.status(201).json({ user: sanitizeUser(user), token: accessToken, refreshToken });
   } catch (err) {
     next(err);
   }
@@ -106,7 +106,7 @@ router.post("/login", authLimiter, validate(loginSchema), async (req, res, next)
     await logAction({ userId: user._id, action: "AUTH_LOGIN", req });
 
     setAuthCookies(res, accessToken, refreshToken);
-    res.json({ user: sanitizeUser(user), token: accessToken });
+    res.json({ user: sanitizeUser(user), token: accessToken, refreshToken });
   } catch (err) {
     next(err);
   }
@@ -114,7 +114,7 @@ router.post("/login", authLimiter, validate(loginSchema), async (req, res, next)
 
 router.post("/refresh", async (req, res, next) => {
   try {
-    const token = req.cookies.refreshToken;
+    const token = req.cookies.refreshToken || req.headers["x-refresh-token"] || req.body.refreshToken;
     if (!token) return res.status(401).json({ message: "Refresh token required" });
 
     let payload;
@@ -144,7 +144,7 @@ router.post("/refresh", async (req, res, next) => {
     await user.save();
 
     setAuthCookies(res, newAccessToken, newRefreshToken);
-    res.json({ token: newAccessToken });
+    res.json({ token: newAccessToken, refreshToken: newRefreshToken });
   } catch (err) {
     next(err);
   }

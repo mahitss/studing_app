@@ -222,11 +222,19 @@ export default function StudyTrackerApp() {
 
   const hiddenAt = useRef<number | null>(null);
 
+  const getLocalDateString = useCallback(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, []);
+
   const userKey = "study-tracker-user-id";
   const authTokenKey = "study-tracker-auth-token";
   const settingsKey = "study-tracker-settings";
   const offlineQueueKey = "study-tracker-offline-queue";
-  const ritualKey = `study-tracker-ritual-${new Date().toISOString().slice(0, 10)}`;
+  const ritualKey = `study-tracker-ritual-${getLocalDateString()}`;
 
   const refreshAll = useCallback(async (userId: string) => {
     try {
@@ -346,6 +354,27 @@ export default function StudyTrackerApp() {
     };
     init();
   }, [refreshAll, setError, setIsInitializing]);
+
+  // Watch for midnight (12:00 AM) local time transitions to start a new day
+  useEffect(() => {
+    if (!user?._id) return;
+
+    let lastCheckedDate = getLocalDateString();
+
+    const intervalId = setInterval(() => {
+      const currentDate = getLocalDateString();
+      if (currentDate !== lastCheckedDate) {
+        lastCheckedDate = currentDate;
+        toast.success("Midnight crossed. Neural shift complete, beginning new study day!", {
+          duration: 6000,
+          icon: "🌅"
+        });
+        refreshAll(user._id);
+      }
+    }, 15000); // Check every 15 seconds
+
+    return () => clearInterval(intervalId);
+  }, [user, refreshAll, getLocalDateString]);
 
   // Background Sync & Cross-Tab State Synchronization
   useEffect(() => {

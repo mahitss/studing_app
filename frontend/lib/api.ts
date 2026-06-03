@@ -30,11 +30,14 @@ export const socket = io(SOCKET_URL, {
   withCredentials: true
 });
 
-export function saveAuthSession(userId: string, token?: string) {
+export function saveAuthSession(userId: string, token?: string, refreshToken?: string) {
   if (typeof window === "undefined") return;
   localStorage.setItem(USER_ID_KEY, userId);
   if (token) {
     localStorage.setItem("study-tracker-auth-token", token);
+  }
+  if (refreshToken) {
+    localStorage.setItem("study-tracker-refresh-token", refreshToken);
   }
 }
 
@@ -42,6 +45,7 @@ export function clearAuthSession() {
   if (typeof window === "undefined") return;
   localStorage.removeItem(USER_ID_KEY);
   localStorage.removeItem("study-tracker-auth-token");
+  localStorage.removeItem("study-tracker-refresh-token");
 }
 
 let refreshPromise: Promise<string> | null = null;
@@ -54,12 +58,18 @@ async function refreshAuthToken(): Promise<string> {
   refreshPromise = (async () => {
     try {
       const fullUrl = `${API_BASE}/auth/refresh`.replace(/([^:]\/)\/+/g, "$1");
+      const localRefreshToken = typeof window !== "undefined" ? localStorage.getItem("study-tracker-refresh-token") : null;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json"
+      };
+      if (localRefreshToken) {
+        headers["x-refresh-token"] = localRefreshToken;
+      }
+
       const res = await fetch(fullUrl, {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json"
-        }
+        headers
       });
       if (!res.ok) {
         throw new Error("Failed to refresh token");
@@ -69,6 +79,9 @@ async function refreshAuthToken(): Promise<string> {
         throw new Error("No token returned in refresh response");
       }
       localStorage.setItem("study-tracker-auth-token", data.token);
+      if (data.refreshToken) {
+        localStorage.setItem("study-tracker-refresh-token", data.refreshToken);
+      }
       return data.token;
     } catch (err) {
       clearAuthSession();
@@ -102,6 +115,9 @@ async function request<T>(path: string, init?: RequestInit, retries = 3): Promis
         };
         if (token) {
           headers["Authorization"] = `Bearer ${token}`;
+        }
+        if (typeof window !== "undefined") {
+          headers["x-timezone-offset"] = String(new Date().getTimezoneOffset());
         }
 
         const fullUrl = `${API_BASE}${path}`.replace(/([^:]\/)\/+/g, "$1");
@@ -203,7 +219,7 @@ export async function bootstrapUser(
   college: string,
   identityType = "Serious",
   motivationWhy = ""
-): Promise<{ user: User; token: string; dashboard: Dashboard }> {
+): Promise<{ user: User; token: string; refreshToken?: string; dashboard: Dashboard }> {
   return request("/users/bootstrap", {
     method: "POST",
     body: JSON.stringify({ name, college, identityType, motivationWhy })
@@ -217,7 +233,7 @@ export async function registerUser(
   college: string,
   identityType = "Serious",
   motivationWhy = ""
-): Promise<{ user: User; token: string; dashboard: Dashboard }> {
+): Promise<{ user: User; token: string; refreshToken?: string; dashboard: Dashboard }> {
   return request("/auth/register", {
     method: "POST",
     body: JSON.stringify({ name, email, password, college, identityType, motivationWhy })
@@ -227,7 +243,7 @@ export async function registerUser(
 export async function loginUser(
   email: string,
   password: string
-): Promise<{ user: User; token: string; dashboard: Dashboard }> {
+): Promise<{ user: User; token: string; refreshToken?: string; dashboard: Dashboard }> {
   return request("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password })

@@ -25,6 +25,7 @@ const { logAction } = require("../utils/auditLogger");
 const { dispatchWebhook } = require("../utils/webhookDispatcher");
 
 const { signAccessToken, signRefreshToken, sanitizeUser } = require("../utils/userHelpers");
+const { todayKey } = require("../utils/dateUtils");
 
 const setAuthCookies = (res, accessToken, refreshToken) => {
   res.cookie("authToken", accessToken, {
@@ -63,7 +64,7 @@ router.post("/bootstrap", async (req, res, next) => {
     setAuthCookies(res, accessToken, refreshToken);
 
     const dashboard = await trackerService.dashboardForUser(user._id);
-    res.status(201).json({ user: sanitizeUser(user), token: accessToken, dashboard });
+    res.status(201).json({ user: sanitizeUser(user), token: accessToken, refreshToken, dashboard });
   } catch (err) {
     next(err);
   }
@@ -360,7 +361,7 @@ router.post("/:userId/sessions/start", requireAuth, requireSelf, sessionLimiter,
     const { subject, studyMode, plannedDurationMinutes, riskMode } = req.body;
     const userId = req.params.userId;
     const now = new Date().toISOString();
-    const dateStr = now.slice(0, 10);
+    const dateStr = todayKey();
     const session = await StudySession.create({
       userId,
       date: dateStr,

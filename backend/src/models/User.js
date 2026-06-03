@@ -37,6 +37,7 @@ const userSchema = new mongoose.Schema(
       level: { type: Number, default: 1 },
       happiness: { type: Number, default: 100, min: 0, max: 100 }
     },
+    timezoneOffset: { type: Number, default: 0 },
     refreshToken: { type: String, default: "" },
     deletedAt: { type: Date, default: null },
     isActive: { type: Boolean, default: true },

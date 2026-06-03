@@ -1,6 +1,7 @@
 const nodemailer = require("nodemailer");
 const DailyGoal = require("../models/DailyGoal");
 const logger = require("../utils/logger");
+const { todayKey, yesterdayKey, getAdjustedDate } = require("../utils/dateUtils");
 
 let transporter = null;
 
@@ -33,7 +34,7 @@ function getTransporter() {
 }
 
 function weekFromKey() {
-  const now = new Date();
+  const now = getAdjustedDate();
   const from = new Date(now);
   from.setDate(from.getDate() - 6);
   return from.toISOString().slice(0, 10);
@@ -41,7 +42,7 @@ function weekFromKey() {
 
 async function buildUserSummary(user) {
   const userId = user._id;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
   const weeklyFrom = weekFromKey();
   const goals = await DailyGoal.find({ userId }).sort({ date: 1 });
 

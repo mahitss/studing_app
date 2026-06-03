@@ -41,7 +41,7 @@ export default function SignInPage() {
       setError("");
       setLoading(true);
       const response = await loginUser(email, password);
-      saveAuthSession(response.user._id, response.token);
+      saveAuthSession(response.user._id, response.token, response.refreshToken);
       router.push("/dashboard");
     } catch (err) {
       setError((err as Error).message || "Login failed");
@@ -56,7 +56,7 @@ export default function SignInPage() {
       setError("");
       setLoading(true);
       const response = await bootstrapUser("Focused Student", "General", "Serious", "Skill");
-      saveAuthSession(response.user._id, response.token);
+      saveAuthSession(response.user._id, response.token, response.refreshToken);
       router.push("/dashboard");
     } catch (err) {
       setError((err as Error).message || "Guest setup failed");

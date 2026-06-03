@@ -74,7 +74,7 @@ export default function SignUpPage() {
         data.identity,
         data.why
       );
-      saveAuthSession(response.user._id, response.token);
+      saveAuthSession(response.user._id, response.token, response.refreshToken);
       toast.success("Welcome aboard! Neural uplink initialized.");
       router.push("/dashboard");
     } catch (err: any) {

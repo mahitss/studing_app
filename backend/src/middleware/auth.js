@@ -37,9 +37,18 @@ const requireAuth = async (req, res, next) => {
     req.auth = payload;
 
     const User = require("../models/User");
-    const user = await User.findById(payload.sub).select("isActive deletedAt");
+    const user = await User.findById(payload.sub).select("isActive deletedAt timezoneOffset");
     if (!user || !user.isActive || user.deletedAt) {
       return res.status(401).json({ message: "User account deactivated or deleted" });
+    }
+
+    const offsetHeader = req.headers["x-timezone-offset"];
+    if (offsetHeader !== undefined) {
+      const offset = parseInt(offsetHeader, 10) || 0;
+      if (user.timezoneOffset !== offset) {
+        user.timezoneOffset = offset;
+        await user.save();
+      }
     }
 
     return next();
