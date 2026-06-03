@@ -886,6 +886,7 @@ const dashboardForUser = async (userId) => {
       ? roastLines[Math.floor(Math.random() * roastLines.length)]
       : "",
     aiSuggestions: aiCoach,
+    breakSuggestions: getBreakSuggestions(todayGoal?.studiedMinutes || 0),
     antiCheat: {
       tabSwitchDetected: todaySessions.some((s) => (s.pauseCount || 0) > 0),
       idleDetected: todaySessions.some((s) => (s.inactiveSeconds || 0) > 0),

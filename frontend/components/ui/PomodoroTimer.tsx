@@ -34,8 +34,6 @@ export default function PomodoroTimer({ onComplete }: PomodoroTimerProps) {
         setTimeLeft(25 * 60);
       }
       setIsActive(false);
-      const alertAudio = new Audio('/sounds/alert.mp3');
-      alertAudio.play().catch(err => console.warn("Alert sound failed:", err));
     }
 
     return () => clearInterval(interval);

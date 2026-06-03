@@ -26,8 +26,8 @@ const endSessionSchema = z.object({
 const offlineSyncSchema = z.object({
   body: z.object({
     sessions: z.array(z.object({
-      startedAt: z.string().datetime({ message: "startedAt must be ISO date" }),
-      endedAt: z.string().datetime({ message: "endedAt must be ISO date" }),
+      startedAt: z.string().datetime({ offset: true, message: "startedAt must be ISO date" }),
+      endedAt: z.string().datetime({ offset: true, message: "endedAt must be ISO date" }),
       focusedMinutes: z.number().int().nonnegative(),
       inactiveSeconds: z.number().int().nonnegative().optional(),
       pauseCount: z.number().int().nonnegative().optional(),

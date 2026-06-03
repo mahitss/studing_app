@@ -180,5 +180,78 @@ describe('API request retry and offline sync logic', () => {
     expect(result).toEqual({ synced: 0, dashboard: {} });
     expect(mockFetch).not.toHaveBeenCalled();
   });
+
+  it('should refresh token on 401 error and retry request successfully', async () => {
+    const mockFetch = global.fetch as jest.Mock;
+    localStorage.setItem('study-tracker-auth-token', 'oldToken');
+
+    // 1st call: Original request returns 401
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: async () => ({ message: 'Unauthorized' }),
+    });
+
+    // 2nd call: Token refresh returns 200 with new token
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ token: 'newToken' }),
+    });
+
+    // 3rd call: Retried request returns 200
+    const mockDashboard = { todayStudyMinutes: 45 };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => mockDashboard,
+    });
+
+    const { fetchDashboard } = require('../lib/api');
+    const result = await fetchDashboard('user123');
+
+    expect(result).toEqual(mockDashboard);
+    expect(localStorage.getItem('study-tracker-auth-token')).toBe('newToken');
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+
+    // Verify parameters of the calls
+    const [call1Url, call1Init] = mockFetch.mock.calls[0];
+    const [call2Url, call2Init] = mockFetch.mock.calls[1];
+    const [call3Url, call3Init] = mockFetch.mock.calls[2];
+
+    expect(call1Url).toContain('/users/user123/dashboard');
+
+    expect(call2Url).toContain('/auth/refresh');
+
+    expect(call3Url).toContain('/users/user123/dashboard');
+    expect(call3Init.headers['Authorization']).toBe('Bearer newToken');
+  });
+
+  it('should clear session and throw 401 when token refresh fails', async () => {
+    const mockFetch = global.fetch as jest.Mock;
+    localStorage.setItem('study-tracker-user-id', 'user123');
+    localStorage.setItem('study-tracker-auth-token', 'oldToken');
+
+    // 1st call: Original request returns 401
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: async () => ({ message: 'Unauthorized' }),
+    });
+
+    // 2nd call: Token refresh returns 500
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({ message: 'Failed to refresh token' }),
+    });
+
+    const { fetchDashboard } = require('../lib/api');
+    await expect(fetchDashboard('user123')).rejects.toThrow('Session expired. Please log in again.');
+
+    expect(localStorage.getItem('study-tracker-user-id')).toBeNull();
+    expect(localStorage.getItem('study-tracker-auth-token')).toBeNull();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
 });
 

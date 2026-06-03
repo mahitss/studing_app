@@ -222,7 +222,7 @@ export function useSessionManager() {
             plannedDurationMinutes: sessionMinutes,
             riskMode: sessionRisk,
             notes: notesStr,
-            date: activeSession.date
+            date: activeSession.date || new Date().toISOString().slice(0, 10)
           };
           const validated = OfflineSessionSchema.parse(offlineSession);
           queue.push(validated);

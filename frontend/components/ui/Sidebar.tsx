@@ -56,7 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, dashboard, activeScreen, onScre
               <item.icon size={18} strokeWidth={activeScreen === item.id ? 2.5 : 2} />
               <span className="text-[10px] uppercase tracking-[0.2em]">{item.label}</span>
             </div>
-            <span className="text-[8px] opacity-20 font-black tracking-widest group-hover:opacity-100">{item.hotkey.split('+')[1]}</span>
+            <span className="text-[8px] opacity-20 font-black tracking-widest group-hover:opacity-100">{item.hotkey}</span>
           </button>
         ))}
       </nav>

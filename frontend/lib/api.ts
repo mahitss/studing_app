@@ -119,20 +119,31 @@ async function request<T>(path: string, init?: RequestInit, retries = 3): Promis
             const newToken = await refreshAuthToken();
             // Retry request with new token
             headers["Authorization"] = `Bearer ${newToken}`;
-            const retryRes = await fetch(fullUrl, {
-              ...init,
-              credentials: "include",
-              headers,
-              cache: "no-store"
-            });
-            if (!retryRes.ok) {
-              const errorData = await retryRes.json().catch(() => ({}));
-              let errMsg = errorData.error?.message || errorData.message || `API Error ${retryRes.status}`;
-              const error = new Error(errMsg);
-              (error as any).status = retryRes.status;
-              throw error;
+            const retryController = new AbortController();
+            const retryTimeoutId = setTimeout(() => {
+              if (!retryController.signal.aborted) retryController.abort();
+            }, 12000);
+            try {
+              const retryRes = await fetch(fullUrl, {
+                ...init,
+                signal: retryController.signal,
+                credentials: "include",
+                headers,
+                cache: "no-store"
+              });
+              clearTimeout(retryTimeoutId);
+              if (!retryRes.ok) {
+                const errorData = await retryRes.json().catch(() => ({}));
+                let errMsg = errorData.error?.message || errorData.message || `API Error ${retryRes.status}`;
+                const error = new Error(errMsg);
+                (error as any).status = retryRes.status;
+                throw error;
+              }
+              return retryRes.json();
+            } catch (retryErr) {
+              clearTimeout(retryTimeoutId);
+              throw retryErr;
             }
-            return retryRes.json();
           } catch (refreshErr) {
             clearAuthSession();
             const error = new Error("Session expired. Please log in again.");

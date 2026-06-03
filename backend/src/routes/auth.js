@@ -136,6 +136,10 @@ router.post("/refresh", async (req, res, next) => {
     const newAccessToken = signAccessToken(user);
     const newRefreshToken = signRefreshToken(user);
 
+    if (!newAccessToken || typeof newAccessToken !== "string" || !newAccessToken.includes(".")) {
+      return res.status(500).json({ message: "Token generation failed" });
+    }
+
     user.refreshToken = newRefreshToken;
     await user.save();
 
@@ -272,7 +276,9 @@ router.post("/verify-email", async (req, res, next) => {
     const { token } = req.body;
     if (!token) return res.status(400).json({ message: "Verification token is required" });
 
-    const user = await User.findOne({ emailVerificationToken: token });
+    const user = await User.findOne({
+      emailVerificationToken: crypto.createHash("sha256").update(token).digest("hex")
+    });
     if (!user) return res.status(400).json({ message: "Invalid or expired verification token" });
 
     user.isEmailVerified = true;
@@ -294,7 +300,7 @@ router.post("/resend-verification", requireAuth, async (req, res, next) => {
     if (user.isEmailVerified) return res.status(400).json({ message: "Email is already verified" });
 
     const token = crypto.randomBytes(20).toString("hex");
-    user.emailVerificationToken = token;
+    user.emailVerificationToken = crypto.createHash("sha256").update(token).digest("hex");
     await user.save();
 
     await emailService.sendVerificationEmail(user, token);

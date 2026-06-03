@@ -498,7 +498,13 @@ export async function mockRequest<T>(path: string, init?: RequestInit): Promise<
 
   const joinRoomMatch = path.match(/^\/rooms\/([^/]+)\/join$/);
   if (joinRoomMatch && method === "POST") {
-    return { ok: true } as T;
+    return {
+      _id: joinRoomMatch[1],
+      name: "Study Chamber",
+      activeSubject: "General",
+      members: [body.userId || store.user?._id || "unknown"],
+      ownerId: { _id: "owner-1", name: "Agent Alpha" }
+    } as T;
   }
 
   const roomNotesMatch = path.match(/^\/rooms\/([^/]+)\/notes$/);
@@ -527,6 +533,7 @@ export async function mockRequest<T>(path: string, init?: RequestInit): Promise<
   }
 
   if (path === "/duels" && method === "POST") {
+    const now = new Date().toISOString();
     return {
       _id: `duel-${Date.now()}`,
       challengerId: body.challengerId,
@@ -534,7 +541,9 @@ export async function mockRequest<T>(path: string, init?: RequestInit): Promise<
       durationMinutes: body.durationMinutes,
       challengerProgress: 0,
       opponentProgress: 0,
-      status: "pending"
+      status: "pending",
+      startedAt: now,
+      endedAt: null
     } as T;
   }
 
@@ -548,7 +557,9 @@ export async function mockRequest<T>(path: string, init?: RequestInit): Promise<
         durationMinutes: 60,
         challengerProgress: 15,
         opponentProgress: 20,
-        status: "active"
+        status: "active",
+        startedAt: new Date(Date.now() - 30 * 60000).toISOString(),
+        endedAt: null
       }
     ] as T;
   }
