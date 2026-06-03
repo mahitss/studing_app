@@ -75,6 +75,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     register: registerGoal,
     handleSubmit: handleSubmitGoal,
     formState: { errors: goalErrors },
+    reset: resetGoal,
   } = useForm({
     resolver: zodResolver(goalSchema),
     defaultValues: {
@@ -83,10 +84,16 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     },
   });
 
+  // Re-sync form when API-loaded values arrive
+  React.useEffect(() => {
+    resetGoal({ goalDaily, goalWeekly });
+  }, [goalDaily, goalWeekly, resetGoal]);
+
   const {
     register: registerIdentity,
     handleSubmit: handleSubmitIdentity,
     formState: { errors: identityErrors },
+    reset: resetIdentity,
   } = useForm({
     resolver: zodResolver(identitySchema),
     defaultValues: {
@@ -95,16 +102,25 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     },
   });
 
+  React.useEffect(() => {
+    resetIdentity({ identityType: identityType as any, motivationWhy });
+  }, [identityType, motivationWhy, resetIdentity]);
+
   const {
     register: registerEmail,
     handleSubmit: handleSubmitEmail,
     formState: { errors: emailErrors },
+    reset: resetEmail,
   } = useForm({
     resolver: zodResolver(emailSchema),
     defaultValues: {
       summaryEmail,
     },
   });
+
+  React.useEffect(() => {
+    resetEmail({ summaryEmail });
+  }, [summaryEmail, resetEmail]);
 
   const onGoalSubmit = (data: any) => {
     setGoalDaily(data.goalDaily);
