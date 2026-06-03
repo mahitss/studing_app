@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Plus, Users, Swords } from "lucide-react";
 import { EmptyState } from "../ui/EmptyState";
+import { unescapeHtml } from "../../lib/utils";
 
 interface ColosseumViewProps {
   rooms: any[];
@@ -63,7 +64,7 @@ const ColosseumView: React.FC<ColosseumViewProps> = ({ rooms, currentRoom, onJoi
                   <span className="text-xs font-bold">{room.members?.length || 0}</span>
                 </div>
               </div>
-              <h3 className="text-xl font-bold mb-2 uppercase tracking-tight">{room.name}</h3>
+              <h3 className="text-xl font-bold mb-2 uppercase tracking-tight">{unescapeHtml(room.name)}</h3>
               <p className="text-[10px] text-muted mb-8 line-clamp-2 italic uppercase tracking-widest font-black">
                 Commanded by {room.ownerId?.name || (typeof room.ownerId === 'string' ? `Agent ${room.ownerId.slice(-4)}` : "Unknown Agent")}
               </p>

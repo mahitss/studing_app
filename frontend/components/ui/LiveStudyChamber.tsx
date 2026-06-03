@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Plus, Activity, AlertTriangle, Zap } from 'lucide-react';
 import { updateRoomNotes, voteAmbient, broadcastEmergencyAlert, placeXPBet, submitGroupAIQuery } from '../../lib/api';
+import { unescapeHtml } from '../../lib/utils';
 
 interface LiveStudyChamberProps {
   onClose: () => void;
@@ -103,13 +104,13 @@ export default function LiveStudyChamber({ onClose, room, socket, userId }: Live
       exit={{ opacity: 0, scale: 0.95 }}
       className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-3xl"
     >
-      <div className="w-full max-w-7xl h-[90vh] glass-card overflow-hidden flex shadow-[0_0_100px_rgba(62,99,221,0.2)]">
+      <div className="w-full max-w-7xl h-[82vh] glass-card overflow-hidden flex shadow-[0_0_100px_rgba(62,99,221,0.2)]">
         <div className="flex-1 flex flex-col relative border-r border-white/5 bg-black/20">
           <div className="absolute top-0 w-full p-6 z-20 flex justify-between items-center">
             <div className="flex items-center gap-4">
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
               <div>
-                <h3 className="text-xs font-black uppercase tracking-[0.2em]">{room?.name || "Neural Hub"}</h3>
+                <h3 className="text-xs font-black uppercase tracking-[0.2em]">{unescapeHtml(room?.name || "Neural Hub")}</h3>
                 <p className="text-[10px] text-muted font-bold tracking-widest uppercase mt-1">Cluster Protocol: Active</p>
               </div>
             </div>
