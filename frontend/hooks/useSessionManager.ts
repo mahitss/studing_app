@@ -176,13 +176,25 @@ export function useSessionManager() {
     const sessionMode = activeSession.studyMode || "custom";
     const sessionMinutes = activeSession.plannedDurationMinutes || 0;
     const sessionRisk = !!activeSession.riskMode;
+    const sessionId = activeSession._id;
+    const startedAt = activeSession.startedAt;
+    const date = activeSession.date;
+    const pauseCount = activeSession.pauseCount || 0;
+
+    // Optimistic UI update: clear session immediately for instant transitions
+    setActiveSession(null);
+    try {
+      localStorage.removeItem("gl-active-session");
+    } catch (e) {
+      console.warn("localStorage operation failed", e);
+    }
 
     try {
       setIsActionLoading(true);
 
       const response = await endSession(
         user._id,
-        activeSession._id,
+        sessionId,
         inactiveSeconds,
         notesStr,
         sessionSubject,
@@ -196,12 +208,6 @@ export function useSessionManager() {
       if (!response || !response.dashboard) throw new Error("End protocol synchronization failed.");
       const { dashboard: updated } = response;
       setDashboard(updated);
-      setActiveSession(null);
-      try {
-        localStorage.removeItem("gl-active-session");
-      } catch (e) {
-        console.warn("localStorage operation failed", e);
-      }
       
       const { sessions: sessionList } = await getTodaySessions(user._id);
       setSessions(sessionList);
@@ -209,38 +215,28 @@ export function useSessionManager() {
     } catch (err: any) {
       // Offline fallback: save completed session to offline queue
       try {
-        if (activeSession) {
-          const queue = JSON.parse(localStorage.getItem("study-tracker-offline-queue") || "[]");
-          const offlineSession = {
-            startedAt: activeSession.startedAt,
-            endedAt: new Date().toISOString(),
-            focusedMinutes: Math.max(1, Math.round(elapsed / 60)),
-            inactiveSeconds: inactiveSeconds,
-            pauseCount: activeSession.pauseCount || 0,
-            subject: sessionSubject,
-            studyMode: sessionMode,
-            plannedDurationMinutes: sessionMinutes,
-            riskMode: sessionRisk,
-            notes: notesStr,
-            date: activeSession.date || new Date().toISOString().slice(0, 10)
-          };
-          const validated = OfflineSessionSchema.parse(offlineSession);
-          queue.push(validated);
-          localStorage.setItem("study-tracker-offline-queue", JSON.stringify(queue));
-        }
+        const queue = JSON.parse(localStorage.getItem("study-tracker-offline-queue") || "[]");
+        const offlineSession = {
+          startedAt,
+          endedAt: new Date().toISOString(),
+          focusedMinutes: Math.max(1, Math.round(elapsed / 60)),
+          inactiveSeconds: inactiveSeconds,
+          pauseCount,
+          subject: sessionSubject,
+          studyMode: sessionMode,
+          plannedDurationMinutes: sessionMinutes,
+          riskMode: sessionRisk,
+          notes: notesStr,
+          date: date || new Date().toISOString().slice(0, 10)
+        };
+        const validated = OfflineSessionSchema.parse(offlineSession);
+        queue.push(validated);
+        localStorage.setItem("study-tracker-offline-queue", JSON.stringify(queue));
       } catch (e) {
         console.warn("Failed to queue offline session:", e);
       }
 
-      // Clear active session locally so user isn't locked
-      setActiveSession(null);
-      try {
-        localStorage.removeItem("gl-active-session");
-      } catch (e) {
-        console.warn("localStorage operation failed", e);
-      }
       setInactiveSeconds(0);
-      
       setError("Uplink offline. Study session queued locally and will be synchronized when connection is restored.");
     } finally {
       setIsActionLoading(false);

@@ -17,6 +17,7 @@ interface TimerViewProps {
   onEnd: () => void;
   formatHMS: (s: number) => string;
   onSetDuration?: (mins: number, mode: "pomodoro" | "deep" | "custom") => void;
+  isActionLoading?: boolean;
 }
 
 const TimerView: React.FC<TimerViewProps> = ({ 
@@ -29,7 +30,8 @@ const TimerView: React.FC<TimerViewProps> = ({
   onResume,
   onEnd,
   formatHMS,
-  onSetDuration
+  onSetDuration,
+  isActionLoading = false
 }) => {
   const [showMusic, setShowMusic] = useState(false);
   const progress = plannedDuration > 0 ? (elapsed / (plannedDuration * 60)) * 100 : 0;
@@ -115,36 +117,58 @@ const TimerView: React.FC<TimerViewProps> = ({
               {status === "idle" ? (
                 <button 
                   onClick={onStart} 
+                  disabled={isActionLoading}
                   aria-label="Start study session"
-                  className="btn-primary px-12 py-4 rounded-2xl flex items-center gap-3 shadow-[0_0_30px_rgba(123,97,255,0.2)]"
+                  className="btn-primary px-12 py-4 rounded-2xl flex items-center gap-3 shadow-[0_0_30px_rgba(123,97,255,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Play size={20} fill="currentColor" /> INITIALIZE MISSION
+                  {isActionLoading ? (
+                    <>
+                      <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      INITIALIZING MISSION...
+                    </>
+                  ) : (
+                    <>
+                      <Play size={20} fill="currentColor" /> INITIALIZE MISSION
+                    </>
+                  )}
                 </button>
               ) : (
                 <>
                   {status === "running" ? (
                     <button 
                       onClick={onPause} 
+                      disabled={isActionLoading}
                       aria-label="Pause session"
-                      className="nav-btn p-6 rounded-2xl bg-white/5"
+                      className="nav-btn p-6 rounded-2xl bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Pause size={24} fill="currentColor" />
                     </button>
                   ) : (
                     <button 
                       onClick={onResume} 
+                      disabled={isActionLoading}
                       aria-label="Resume session"
-                      className="nav-btn p-6 rounded-2xl bg-accent text-black shadow-lg shadow-accent/20"
+                      className="nav-btn p-6 rounded-2xl bg-accent text-black shadow-lg shadow-accent/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Play size={24} fill="currentColor" />
                     </button>
                   )}
                   <button 
                     onClick={() => onEnd()} 
+                    disabled={isActionLoading}
                     aria-label="End session"
-                    className="btn-danger px-12 py-4 rounded-2xl flex items-center gap-3"
+                    className="btn-danger px-12 py-4 rounded-2xl flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <RefreshCw size={20} /> TERMINATE MISSION
+                    {isActionLoading ? (
+                      <>
+                        <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        TERMINATING MISSION...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw size={20} /> TERMINATE MISSION
+                      </>
+                    )}
                   </button>
                 </>
               )}

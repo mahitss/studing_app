@@ -825,6 +825,7 @@ export default function StudyTrackerApp() {
                     setPlannedDuration(mins);
                     setStudyMode(mode);
                   }}
+                  isActionLoading={isActionLoading}
                 />
               </ErrorBoundary>
             )}

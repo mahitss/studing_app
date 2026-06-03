@@ -69,13 +69,15 @@ async function ensureDailyChallenges(userId) {
     }
   ];
 
-  for (const task of dailyTasks) {
-    await Challenge.findOneAndUpdate(
-      { userId, date: today, type: task.type },
-      { $setOnInsert: { ...task, isCompleted: false, currentValue: 0 } },
-      { upsert: true, new: true }
-    );
-  }
+  await Promise.all(
+    dailyTasks.map((task) =>
+      Challenge.findOneAndUpdate(
+        { userId, date: today, type: task.type },
+        { $setOnInsert: { ...task, isCompleted: false, currentValue: 0 } },
+        { upsert: true, new: true }
+      )
+    )
+  );
   logger.info(`Verified daily challenges for user ${userId}`);
 }
 

@@ -670,8 +670,23 @@ const energyPattern = (sessions) => {
   };
 };
 
-const applyXpAndBadges = async (userId) => {
-  const user = await User.findById(userId);
+const applyXpAndBadges = async (userId, preloaded = null) => {
+  let user, goals, sessions;
+  if (preloaded) {
+    user = preloaded.user;
+    goals = preloaded.goals;
+    sessions = preloaded.sessions;
+  } else {
+    user = await User.findById(userId);
+    if (!user) return null;
+    const [preloadedGoals, preloadedSessions] = await Promise.all([
+      DailyGoal.find({ userId }).sort({ date: 1 }),
+      StudySession.find({ userId, status: "completed" }).sort({ startedAt: -1 }).limit(500)
+    ]);
+    goals = preloadedGoals;
+    sessions = preloadedSessions;
+  }
+
   if (!user) return null;
 
   if (!user.streak) {
@@ -681,8 +696,6 @@ const applyXpAndBadges = async (userId) => {
     user.pet = { name: "Neural-Bot", type: "robot", level: 1, happiness: 100 };
   }
 
-  const goals = await DailyGoal.find({ userId }).sort({ date: 1 });
-  const sessions = await StudySession.find({ userId, status: "completed" }).sort({ startedAt: -1 }).limit(500);
   const streak = streakFromGoals(goals);
 
   const totalFocusedMinutes = sessions.reduce((sum, s) => sum + (s.focusedMinutes || 0), 0);
@@ -720,31 +733,46 @@ const applyXpAndBadges = async (userId) => {
 };
 
 const dashboardForUser = async (userId) => {
-  await ensureDailyGoal(userId);
-  await gamificationService.ensureDailyChallenges(userId);
-  const { goal: todayGoal, sessions: todaySessions } = await recalculateDailyTotals(userId);
-  const user = await applyXpAndBadges(userId);
+  // 1. Setup daily challenges and daily goals totals in parallel
+  const [_, { goal: todayGoal, sessions: todaySessions }] = await Promise.all([
+    gamificationService.ensureDailyChallenges(userId),
+    recalculateDailyTotals(userId)
+  ]);
 
-  const goals = await DailyGoal.find({ userId }).sort({ date: 1 });
+  // 2. Preload User, Daily Goals list, Completed Study Sessions list, and Active Challenges list in parallel
+  const [user, goals, sessions, dbChallenges] = await Promise.all([
+    User.findById(userId),
+    DailyGoal.find({ userId }).sort({ date: 1 }),
+    StudySession.find({ userId, status: "completed" }).sort({ startedAt: -1 }).limit(500),
+    Challenge.find({ userId, isCompleted: false })
+  ]);
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // 3. Apply XP and badges using the preloaded data
+  await applyXpAndBadges(userId, { user, goals, sessions });
+
+  // 4. Calculate metrics based on the preloaded lists
   const streak = streakFromGoals(goals);
-  const weekly = weeklyMetrics(goals, user?.goalConfig?.weeklyTargetMinutes || 1200);
+  const weekly = weeklyMetrics(goals, user.goalConfig?.weeklyTargetMinutes || 1200);
 
-  const sessions = await StudySession.find({ userId, status: "completed" }).sort({ startedAt: -1 }).limit(120);
+  // We slice display sessions to 120 for the UI to prevent bloating
+  const displaySessions = sessions.slice(0, 120);
+
   const totalMinutes = goals.reduce((sum, g) => sum + (g.studiedMinutes || 0), 0);
-  const identity = identityMessaging(user?.identityType || "Serious", Boolean(todayGoal?.completed));
+  const identity = identityMessaging(user.identityType || "Serious", Boolean(todayGoal?.completed));
   const punishmentActive = !todayGoal?.completed && streak.missed >= identity.strictness;
   const history = dailyHistory(goals, 60);
-  const pulse = focusPulse(sessions.slice(0, 40));
+  const pulse = focusPulse(displaySessions.slice(0, 40));
   const complianceRate = goals.length
     ? Math.round((goals.filter((g) => g.completed).length / goals.length) * 100)
     : 0;
 
-  const subjectStats = subjectBreakdown(sessions);
-  const deep = deepAnalytics(sessions);
+  const subjectStats = subjectBreakdown(displaySessions);
+  const deep = deepAnalytics(displaySessions);
   const focusToday = focusScoreForToday(todaySessions);
-  
-  // Real Challenges from DB
-  const dbChallenges = await Challenge.find({ userId, isCompleted: false });
   const challenges = dbChallenges.map(c => ({
     id: c._id,
     title: c.title,
@@ -756,8 +784,8 @@ const dashboardForUser = async (userId) => {
     rewardBadge: c.rewardBadge
   }));
 
-  const energyPatternTracking = energyPattern(sessions.slice(0, 120));
-  const aiCoach = coachSuggestions(sessions, deep, subjectStats.weakAlerts, streak, energyPatternTracking);
+  const energyPatternTracking = energyPattern(displaySessions);
+  const aiCoach = coachSuggestions(displaySessions, deep, subjectStats.weakAlerts, streak, energyPatternTracking);
   const consistencyScore7d = weekly.weeklyCompletionPercent;
   const remainingMinutes = Math.max(0, (todayGoal?.targetMinutes || 0) - (todayGoal?.studiedMinutes || 0));
   const hoursRemaining = Math.ceil(remainingMinutes / 60);
