@@ -19,9 +19,9 @@ interface SettingsViewProps {
   setIdentityType: (val: any) => void;
   setMotivationWhy: (val: string) => void;
   setSummaryEmail: (val: string) => void;
-  onGoalUpdate: () => void;
-  onIdentityUpdate: () => void;
-  onSendEmail: () => void;
+  onGoalUpdate: (daily: number, weekly: number) => Promise<void>;
+  onIdentityUpdate: (identityType: "Casual" | "Serious" | "Hardcore", motivationWhy: string) => Promise<void>;
+  onSendEmail: (email: string) => Promise<void>;
   roastMode: boolean;
   setRoastMode: (val: boolean) => void;
 }
@@ -122,30 +122,30 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     resetEmail({ summaryEmail });
   }, [summaryEmail, resetEmail]);
 
-  const onGoalSubmit = (data: any) => {
-    setGoalDaily(data.goalDaily);
-    setGoalWeekly(data.goalWeekly);
-    // Allow state to set before update triggers
-    setTimeout(() => {
-      onGoalUpdate();
+  const onGoalSubmit = async (data: any) => {
+    try {
+      await onGoalUpdate(data.goalDaily, data.goalWeekly);
       toast.success("Mission target updated successfully.");
-    }, 50);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update goals.");
+    }
   };
 
-  const onIdentitySubmit = (data: any) => {
-    setIdentityType(data.identityType);
-    setMotivationWhy(data.motivationWhy);
-    setTimeout(() => {
-      onIdentityUpdate();
+  const onIdentitySubmit = async (data: any) => {
+    try {
+      await onIdentityUpdate(data.identityType, data.motivationWhy);
       toast.success("Identity profile updated successfully.");
-    }, 50);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update identity profile.");
+    }
   };
 
-  const onEmailSubmit = (data: any) => {
-    setSummaryEmail(data.summaryEmail);
-    setTimeout(() => {
-      onSendEmail();
-    }, 50);
+  const onEmailSubmit = async (data: any) => {
+    try {
+      await onSendEmail(data.summaryEmail);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to transmit progress summary.");
+    }
   };
 
   return (

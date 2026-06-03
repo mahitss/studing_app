@@ -538,46 +538,58 @@ export default function StudyTrackerApp() {
     }
   };
 
-  const handleGoalUpdate = async () => {
+  const handleGoalUpdate = useCallback(async (daily: number, weekly: number) => {
     if (!user) return;
     try {
       setIsActionLoading(true);
-      await setGoalConfig(user._id, { dailyMinutes: goalDaily, weeklyTargetMinutes: goalWeekly });
+      await setGoalConfig(user._id, { dailyMinutes: daily, weeklyTargetMinutes: weekly });
+      setGoalDaily(daily);
+      setGoalWeekly(weekly);
       await refreshAll(user._id);
-    } catch {
+    } catch (err: any) {
       setError("Failed to calibrate goals. Protocol rejected.");
+      throw err;
     } finally {
       setIsActionLoading(false);
     }
-  };
+  }, [user, setGoalDaily, setGoalWeekly, refreshAll, setError, setIsActionLoading]);
 
-  const handleIdentityUpdate = async () => {
+  const handleIdentityUpdate = useCallback(async (idType: "Casual" | "Serious" | "Hardcore", motivation: string) => {
     if (!user) return;
     try {
       setIsActionLoading(true);
-      await setModes(user._id, settings.roastMode, identityType, motivationWhy);
+      await setModes(user._id, settings.roastMode, idType, motivation);
+      setIdentityType(idType);
+      setMotivationWhy(motivation);
       await refreshAll(user._id);
-    } catch {
+    } catch (err: any) {
       setError("Identity shift failed. Neural resistance detected.");
+      throw err;
     } finally {
       setIsActionLoading(false);
     }
-  };
+  }, [user, settings.roastMode, setIdentityType, setMotivationWhy, refreshAll, setError, setIsActionLoading]);
 
-  const handleSendEmail = async () => {
+  const handleSendEmail = useCallback(async (email: string) => {
     if (!user) return;
     try {
       setEmailStatus("transmitting");
-      const res = await sendProgressEmail(user._id, summaryEmail);
+      setSummaryEmail(email);
+      const res = await sendProgressEmail(user._id, email);
       if (res.ok) {
         setEmailStatus("delivered");
         setTimeout(() => setEmailStatus(""), 5000);
+      } else {
+        setEmailStatus("error");
+        setError("Data transmission to external node failed.");
+        throw new Error("Data transmission to external node failed.");
       }
-    } catch {
+    } catch (err: any) {
       setEmailStatus("error");
       setError("Data transmission to external node failed.");
+      throw err;
     }
-  };
+  }, [user, setEmailStatus, setSummaryEmail, setError]);
 
   useEffect(() => {
     document.body.dataset.theme = settings.darkMode ? "dark" : "light";
