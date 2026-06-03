@@ -5,7 +5,7 @@ module.exports = async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Cookie");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Cookie, x-timezone-offset, x-refresh-token");
     return res.status(200).end();
   }
 
@@ -39,7 +39,7 @@ module.exports = async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Cookie");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Cookie, x-timezone-offset, x-refresh-token");
     res.status(500).json({
       error: "Neural link initialization failed",
       message: err.message,
