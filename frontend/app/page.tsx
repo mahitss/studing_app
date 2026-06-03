@@ -11,7 +11,7 @@ import {
   Award, 
   Activity, 
   ArrowRight,
-  Sparkles,
+  Sparkle,
   Lock,
   ChevronRight
 } from "lucide-react";
@@ -94,7 +94,7 @@ export default function StudyTrackerLandingPage() {
             className="space-y-6"
           >
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/20 bg-white/5 backdrop-blur-md">
-              <Sparkles size={12} className="text-white/80" />
+              <Sparkle size={12} className="text-white/80" />
               <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/90">DEEP FOCUS INFRASTRUCTURE</span>
             </div>
             
