@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { z } from 'zod';
 import { useStore } from '../lib/store';
 import { 
@@ -115,11 +115,42 @@ export function useSessionManager() {
     return () => clearInterval(interval);
   }, [activeSession]);
 
-  const handleStart = async () => {
+  const handleStart = useCallback(async () => {
     if (!user?._id) return;
+
+    // Haptics vibration
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+
+    const modeMinutes = studyMode === "pomodoro" ? 25 : studyMode === "deep" ? 50 : plannedDuration;
+    
+    // Create optimistic session structure
+    const optimisticSession = {
+      _id: `optimistic-${Date.now()}`,
+      status: "running" as const,
+      startedAt: new Date().toISOString(),
+      lastStartedAt: new Date().toISOString(),
+      elapsedSeconds: 0,
+      focusedMinutes: 0,
+      pauseCount: 0,
+      inactiveSeconds: 0,
+      subject: subject || "General",
+      studyMode: studyMode || "custom",
+      plannedDurationMinutes: modeMinutes,
+      riskMode: riskMode || false,
+      pauses: [],
+      date: new Date().toISOString().slice(0, 10)
+    };
+
+    // Apply optimistic updates immediately
+    setActiveSession(optimisticSession);
+    try {
+      localStorage.setItem("gl-active-session", JSON.stringify(optimisticSession));
+    } catch (e) {}
+
     try {
       setIsActionLoading(true);
-      const modeMinutes = studyMode === "pomodoro" ? 25 : studyMode === "deep" ? 50 : plannedDuration;
       const response = await startSession(user._id, subject, studyMode, modeMinutes, riskMode);
       if (!response || !response.session) throw new Error("Invalid response from neural uplink.");
       const { session } = response;
@@ -131,17 +162,66 @@ export function useSessionManager() {
         console.warn("localStorage operation failed", e);
       }
     } catch (err: any) {
+      // Revert optimistic state on error
+      setActiveSession(null);
+      try {
+        localStorage.removeItem("gl-active-session");
+      } catch (e) {}
       setError(err.message || "Session initialization failed.");
     } finally {
       setIsActionLoading(false);
     }
-  };
+  }, [user?._id, subject, studyMode, plannedDuration, riskMode, setActiveSession, setIsActionLoading, setError]);
 
-  const handlePauseResume = async () => {
+  const handlePauseResume = useCallback(async () => {
     if (!user?._id || !activeSession) return;
+
+    // Haptics vibration
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+
+    const originalSession = { ...activeSession };
+    const isCurrentlyRunning = activeSession.status === "running";
+    const nextStatus = isCurrentlyRunning ? "paused" as const : "running" as const;
+    const nowIso = new Date().toISOString();
+
+    // Dynamically calculate and freeze elapsed seconds on pause
+    let finalElapsed = activeSession.elapsedSeconds || 0;
+    if (isCurrentlyRunning && activeSession.lastStartedAt) {
+      const delta = Math.floor((Date.now() - new Date(activeSession.lastStartedAt).getTime()) / 1000);
+      finalElapsed += Math.max(0, delta);
+    }
+
+    const updatedPauses = [...(activeSession.pauses || [])];
+    if (isCurrentlyRunning) {
+      updatedPauses.push({ startedAt: nowIso, reason: "manual" });
+    } else {
+      if (updatedPauses.length > 0) {
+        const lastPause = { ...updatedPauses[updatedPauses.length - 1] };
+        if (!lastPause.endedAt) lastPause.endedAt = nowIso;
+        updatedPauses[updatedPauses.length - 1] = lastPause;
+      }
+    }
+
+    const optimisticSession = {
+      ...activeSession,
+      status: nextStatus,
+      elapsedSeconds: finalElapsed,
+      pauseCount: isCurrentlyRunning ? (activeSession.pauseCount || 0) + 1 : activeSession.pauseCount,
+      lastStartedAt: isCurrentlyRunning ? undefined : nowIso,
+      pauses: updatedPauses
+    };
+
+    // Apply optimistic updates immediately
+    setActiveSession(optimisticSession);
+    try {
+      localStorage.setItem("gl-active-session", JSON.stringify(optimisticSession));
+    } catch (e) {}
+
     try {
       setIsActionLoading(true);
-      if (activeSession.status === "running") {
+      if (isCurrentlyRunning) {
         const response = await pauseSession(user._id, activeSession._id, "manual");
         if (!response || !response.session) throw new Error("Pause protocol failed.");
         const validated = SessionSchema.parse(response.session);
@@ -163,14 +243,25 @@ export function useSessionManager() {
         }
       }
     } catch (err: any) {
+      // Revert optimistic state on error
+      setActiveSession(originalSession);
+      try {
+        localStorage.setItem("gl-active-session", JSON.stringify(originalSession));
+      } catch (e) {}
       setError(err.message || "Neural link interruption.");
     } finally {
       setIsActionLoading(false);
     }
-  };
+  }, [user?._id, activeSession, setActiveSession, setIsActionLoading, setError]);
 
-  const handleEnd = async (notes = "", antiCheatFlags = 0) => {
+  const handleEnd = useCallback(async (notes = "", antiCheatFlags = 0) => {
     if (!user?._id || !activeSession) return;
+
+    // Trigger haptics complete alert
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate([60, 40, 60]);
+    }
+
     const notesStr = typeof notes === "string" ? notes : "";
     const sessionSubject = activeSession.subject || "General";
     const sessionMode = activeSession.studyMode || "custom";
@@ -180,6 +271,13 @@ export function useSessionManager() {
     const startedAt = activeSession.startedAt;
     const date = activeSession.date;
     const pauseCount = activeSession.pauseCount || 0;
+
+    // Calculate final elapsed time dynamically (avoids timer ticking dependency)
+    let finalElapsed = activeSession.elapsedSeconds || 0;
+    if (activeSession.status === "running" && activeSession.lastStartedAt) {
+      const delta = Math.floor((Date.now() - new Date(activeSession.lastStartedAt).getTime()) / 1000);
+      finalElapsed += Math.max(0, delta);
+    }
 
     // Optimistic UI update: clear session immediately for instant transitions
     setActiveSession(null);
@@ -219,7 +317,7 @@ export function useSessionManager() {
         const offlineSession = {
           startedAt,
           endedAt: new Date().toISOString(),
-          focusedMinutes: Math.max(1, Math.round(elapsed / 60)),
+          focusedMinutes: Math.max(1, Math.round(finalElapsed / 60)),
           inactiveSeconds: inactiveSeconds,
           pauseCount,
           subject: sessionSubject,
@@ -241,7 +339,7 @@ export function useSessionManager() {
     } finally {
       setIsActionLoading(false);
     }
-  };
+  }, [user?._id, activeSession, inactiveSeconds, setActiveSession, setIsActionLoading, setDashboard, setSessions, setError, setInactiveSeconds]);
 
   return {
     elapsed,

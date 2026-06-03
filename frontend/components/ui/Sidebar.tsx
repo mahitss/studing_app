@@ -1,5 +1,5 @@
 import React from "react";
-import { Zap, LogOut, LayoutDashboard, Timer, BarChart3, Flame, Swords, Settings } from "lucide-react";
+import { LogOut, LayoutDashboard, Timer, BarChart3, Flame, Swords, Settings } from "lucide-react";
 import { User, Dashboard } from "../../lib/types";
 import { Screen } from "../../lib/store";
 
@@ -33,11 +33,10 @@ const Sidebar: React.FC<SidebarProps> = ({ user, dashboard, activeScreen, onScre
       
       <aside className={`w-80 h-screen fixed left-0 top-0 glass-card border-r border-white/5 flex flex-col p-8 z-[110] transition-transform duration-300 lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="flex items-center gap-3 mb-16">
-        <div className="p-2 bg-accent/20 rounded-xl">
-          <Zap className="text-accent" size={24} />
-        </div>
+        <img src="/images/logo.png" alt="GrindLock Logo" className="w-10 h-10 rounded-xl object-contain" />
         <h1 className="display-sm text-xl tracking-tighter uppercase font-black">GrindLock<span className="text-accent">.</span></h1>
       </div>
+
 
       <nav className="space-y-2 flex-1">
         {navItems.map((item) => (

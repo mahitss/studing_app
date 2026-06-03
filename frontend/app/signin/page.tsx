@@ -77,7 +77,10 @@ export default function SignInPage() {
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         className="auth-form"
       >
-        <h1>Sign In</h1>
+        <div className="flex flex-col items-center gap-4 mb-2">
+          <img src="/images/logo.png" alt="GrindLock" className="w-16 h-16 rounded-2xl object-contain" />
+          <h1>Sign In</h1>
+        </div>
         <div className="flex flex-col gap-6 text-left w-full">
           <div className="space-y-2">
             <label>Email Address</label>

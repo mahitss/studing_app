@@ -102,6 +102,12 @@ body::after {
   border-radius: 24px;
 }
 
+.glass-card:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(62, 99, 221, 0.25);
+}
+
 /* Gradient effects */
 .gradient-text {
   background: linear-gradient(135deg, #fff 0%, #a5a5b2 100%);
@@ -274,7 +280,9 @@ body::after {
 }
 
 .btn-primary:active {
-  transform: translateY(0);
+  transform: scale(0.97) translateY(0);
+  box-shadow: 0 2px 8px var(--accent-glow);
+  filter: brightness(0.95);
 }
 
 .btn-danger {
@@ -497,12 +505,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
    MICRO-INTERACTIONS & ANIMATIONS
    ========================================================= */
 
-/* Button active press effect */
-.btn-primary:active {
-  transform: scale(0.97) translateY(0) !important;
-  box-shadow: 0 2px 8px var(--accent-glow) !important;
-  filter: brightness(0.95);
-}
+/* Button active press effect is defined above */
 
 .btn-secondary:active,
 .btn-danger:active {
@@ -603,9 +606,9 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .skeleton {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.04) 25%,
-    rgba(255, 255, 255, 0.10) 50%,
-    rgba(255, 255, 255, 0.04) 75%
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.20) 50%,
+    rgba(255, 255, 255, 0.08) 75%
   );
   background-size: 400px 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
@@ -678,4 +681,32 @@ button, .btn-primary, .btn-secondary, .btn-danger {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
   border-radius: 4px;
+}
+
+/* Reduced Motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-delay: 0s !important;
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+  .skeleton {
+    animation: none !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+  }
+}
+
+/* WCAG Mobile Touch Target sizes */
+@media (max-width: 768px) {
+  button, 
+  .btn-primary, 
+  .btn-secondary, 
+  .btn-danger, 
+  .nav-btn,
+  select,
+  input {
+    min-height: 44px;
+  }
 }

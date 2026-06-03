@@ -17,6 +17,10 @@ export const metadata: Metadata = {
   authors: [{ name: "GrindLock Team" }],
   robots: "index, follow",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/images/logo.png",
+    apple: "/images/logo.png",
+  },
 };
 
 import GrindLock3D from "../components/GrindLock3D";

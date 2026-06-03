@@ -94,7 +94,10 @@ export default function SignUpPage() {
         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
         className="auth-form max-w-[500px]"
       >
-        <h1>Create Account</h1>
+        <div className="flex flex-col items-center gap-4 mb-2">
+          <img src="/images/logo.png" alt="GrindLock" className="w-16 h-16 rounded-2xl object-contain" />
+          <h1>Create Account</h1>
+        </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 text-left w-full mt-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

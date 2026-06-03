@@ -36,7 +36,7 @@ export default function PremiumTimer({
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         new Notification("GrindLock Alert", { 
           body: "Target duration reached. Take a break or lock in for overtime.",
-          icon: "/favicon.ico"
+          icon: "/images/logo.png"
         });
       }
       notifiedRef.current = true;

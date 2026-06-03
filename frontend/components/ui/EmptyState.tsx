@@ -27,7 +27,17 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       <div className="absolute -top-24 -left-24 w-48 h-48 rounded-full bg-accent/5 blur-3xl pointer-events-none" />
       <div className="absolute -bottom-24 -right-24 w-48 h-48 rounded-full bg-accent/5 blur-3xl pointer-events-none" />
 
-      <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-6 border border-accent/20">
+      {/* SVG Grid Illustration background */}
+      <svg className="absolute inset-0 w-full h-full opacity-[0.15] pointer-events-none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <pattern id="empty-state-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="1" fill="currentColor" className="text-accent" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#empty-state-grid)" />
+      </svg>
+
+      <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-6 border border-accent/20 relative z-10">
         <Icon className="w-8 h-8 text-accent animate-pulse" />
       </div>
 

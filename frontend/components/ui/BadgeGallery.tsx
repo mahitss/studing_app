@@ -21,6 +21,9 @@ const iconMap: Record<string, any> = {
 };
 
 export const BadgeGallery: React.FC<BadgeGalleryProps> = ({ achievements }) => {
+  const [showAll, setShowAll] = React.useState(false);
+  const displayedAchievements = showAll ? achievements : achievements.slice(0, 6);
+
   return (
     <div className="p-6 glass rounded-2xl border border-white/5 h-full overflow-y-auto">
       <div className="flex items-center gap-3 mb-6">
@@ -31,7 +34,7 @@ export const BadgeGallery: React.FC<BadgeGalleryProps> = ({ achievements }) => {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        {achievements.map((ach) => {
+        {displayedAchievements.map((ach) => {
           const Icon = iconMap[ach.achievementId.icon] || Award;
           return (
             <div 
@@ -55,6 +58,16 @@ export const BadgeGallery: React.FC<BadgeGalleryProps> = ({ achievements }) => {
         {achievements.length === 0 && (
           <div className="col-span-full py-12 text-center opacity-30">
             <p className="text-xs uppercase tracking-widest">No commendations earned yet.</p>
+          </div>
+        )}
+        {achievements.length > 6 && (
+          <div className="col-span-full text-center pt-4">
+            <button 
+              onClick={() => setShowAll(!showAll)} 
+              className="text-[10px] font-black uppercase tracking-widest text-accent hover:underline hover:text-white transition-colors py-2 px-4 rounded-lg bg-white/5 border border-white/5"
+            >
+              {showAll ? "Show Less Commendations" : `Show All Commendations (${achievements.length})`}
+            </button>
           </div>
         )}
       </div>

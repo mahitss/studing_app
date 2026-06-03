@@ -50,6 +50,7 @@ import { useStore } from "../lib/store";
 import { useSocketSync } from "../hooks/useSocketSync";
 import { useSessionManager } from "../hooks/useSessionManager";
 import NeuralCoach from "./ui/NeuralCoach";
+import Confetti from "./ui/Confetti";
 import NeuralAnalytics from "./ui/NeuralAnalytics";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "./ui/ErrorFallback";
@@ -170,11 +171,15 @@ export default function StudyTrackerApp() {
     rooms, setRooms,
     currentRoom, setCurrentRoom,
     duels, setDuels,
-    activeDuel, setActiveDuel,
     liveFriends, setLiveFriends,
     liveMessage, setLiveMessage,
     lastSyncAt, setLastSyncAt
   } = useStore();
+
+  const handleSetDuration = useCallback((mins: number, mode: "pomodoro" | "deep" | "custom") => {
+    setPlannedDuration(mins);
+    setStudyMode(mode);
+  }, [setPlannedDuration, setStudyMode]);
 
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [friendEmail, setFriendEmail] = useState("");
@@ -198,6 +203,9 @@ export default function StudyTrackerApp() {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
   const [isCoachOpen, setIsCoachOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [isFabExpanded, setIsFabExpanded] = useState(false);
+  const prevCompletedChallengesCount = useRef<number | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -376,6 +384,55 @@ export default function StudyTrackerApp() {
     return () => clearInterval(intervalId);
   }, [user, refreshAll, getLocalDateString]);
 
+  // Track completed challenges to trigger confetti
+  useEffect(() => {
+    if (dashboard?.challenges) {
+      const completedCount = dashboard.challenges.filter(c => c.completed).length;
+      if (prevCompletedChallengesCount.current !== null && completedCount > prevCompletedChallengesCount.current) {
+        setShowConfetti(true);
+        const timer = setTimeout(() => setShowConfetti(false), 5000);
+        return () => clearTimeout(timer);
+      }
+      prevCompletedChallengesCount.current = completedCount;
+    }
+  }, [dashboard]);
+
+  // Mobile Swipe Gestures for Sidebar
+  useEffect(() => {
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      const diffX = touchEndX - touchStartX;
+      const diffY = touchEndY - touchStartY;
+
+      // Vertical movement threshold to ignore messy swipes
+      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 60) {
+        if (diffX > 0 && touchStartX < 50) {
+          // Swipe right from left edge: open
+          setIsSidebarOpen(true);
+        } else if (diffX < 0) {
+          // Swipe left: close
+          setIsSidebarOpen(false);
+        }
+      }
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, []);
+
   // Background Sync & Cross-Tab State Synchronization
   useEffect(() => {
     if (!user?._id) return;
@@ -437,7 +494,17 @@ export default function StudyTrackerApp() {
     };
   }, [user, setDashboard, setActiveSession, setSessions]);
 
-  const handleCreateRoom = async () => {
+  const handleJoinRoom = useCallback(async (roomId: string) => {
+    if (!user) return;
+    try {
+      const room = await joinRoom(user._id, roomId);
+      setCurrentRoom(room);
+    } catch {
+      setError("Neutral connection to room failed.");
+    }
+  }, [user, setCurrentRoom, setError]);
+
+  const handleCreateRoom = useCallback(async () => {
     if (!user) return;
     try {
       setIsActionLoading(true);
@@ -449,23 +516,13 @@ export default function StudyTrackerApp() {
     } finally {
       setIsActionLoading(false);
     }
-  };
+  }, [user, rooms, handleJoinRoom, setIsActionLoading, setRooms, setError]);
 
-  const handleJoinRoom = async (roomId: string) => {
-    if (!user) return;
-    try {
-      const room = await joinRoom(user._id, roomId);
-      setCurrentRoom(room);
-    } catch {
-      setError("Neutral connection to room failed.");
-    }
-  };
-
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     clearAuthSession();
     setUser(null);
     window.location.reload();
-  };
+  }, [setUser]);
 
   const handleGuestLogin = async () => {
     try {
@@ -744,11 +801,11 @@ export default function StudyTrackerApp() {
       />
 
       <main className="flex-1 lg:ml-80 p-6 lg:p-12 transition-all duration-300">
-        <header className="flex items-center justify-between mb-8 lg:mb-16">
+        <header className="sticky top-0 z-30 flex items-center justify-between py-4 mb-8 lg:mb-16 bg-[#050505]/80 backdrop-blur-md border-b border-white/5 lg:border-none lg:bg-transparent lg:backdrop-blur-none lg:static lg:py-0">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden p-2 hover:bg-white/5 rounded-lg text-muted"
+              className="lg:hidden p-2 hover:bg-white/5 rounded-lg text-muted min-w-[44px] min-h-[44px] flex items-center justify-center"
               aria-label="Open Sidebar"
             >
               <LayoutDashboard size={24} />
@@ -769,9 +826,10 @@ export default function StudyTrackerApp() {
             </div>
             <button 
               onClick={toggleVoiceControl}
-              className={`p-2 rounded-lg transition-all flex items-center gap-2 ${isListening ? 'bg-danger/20 border-danger text-danger animate-pulse shadow-[0_0_15px_rgba(229,72,77,0.3)]' : 'nav-btn hover:bg-white/5 text-white/50'}`}
+              className={`p-2 rounded-lg transition-all flex items-center gap-2 min-w-[44px] min-h-[44px] justify-center ${isListening ? 'bg-danger/20 border-danger text-danger animate-pulse shadow-[0_0_15px_rgba(229,72,77,0.3)]' : 'nav-btn hover:bg-white/5 text-white/50'}`}
               title={isListening ? "Voice Protocol Active" : "Initialize Voice Protocol (Start Timer/Pause/Stop)"}
               aria-label={isListening ? "Voice Protocol Active" : "Initialize Voice Protocol"}
+              aria-pressed={isListening}
             >
               {isListening ? <Mic size={20} /> : <MicOff size={20} />}
               <span className="text-[10px] font-black uppercase tracking-widest hidden md:block">
@@ -779,17 +837,21 @@ export default function StudyTrackerApp() {
               </span>
             </button>
             <button 
-              className={`p-2 rounded-lg transition-all ${isCoachOpen ? "bg-accent/20 text-accent" : "nav-btn hover:bg-white/5"}`}
+              className={`p-2 rounded-lg transition-all min-w-[44px] min-h-[44px] flex items-center justify-center ${isCoachOpen ? "bg-accent/20 text-accent" : "nav-btn hover:bg-white/5"}`}
               onClick={() => setIsCoachOpen(true)}
+              aria-label="Open Neural Coach"
+              aria-expanded={isCoachOpen}
+              aria-haspopup="dialog"
             >
               <MessageSquare size={20} />
             </button>
             <button 
-              className={`btn-primary text-[10px] lg:text-xs py-2 px-4 lg:px-6 transition-all ${activeSession ? "bg-danger/20 border border-danger/40 text-danger hover:bg-danger/30 shadow-none" : ""}`} 
+              className={`btn-primary text-[10px] lg:text-xs py-2 px-4 lg:px-6 transition-all min-h-[44px] ${activeSession ? "bg-danger/20 border border-danger/40 text-danger hover:bg-danger/30 shadow-none" : ""}`} 
               onClick={() => {
                 if (activeSession) setScreen("timer");
                 else { handleStart(); setScreen("timer"); }
               }}
+              aria-label={activeSession ? "Active session: EN ROUTE. Click to go to Timer" : "No active session. Click to Lock In and start a session"}
             >
               {activeSession ? "EN ROUTE" : "LOCKED IN"}
             </button>
@@ -821,10 +883,7 @@ export default function StudyTrackerApp() {
                   onResume={handlePauseResume}
                   onEnd={handleEnd}
                   formatHMS={formatHMS}
-                  onSetDuration={(mins, mode) => {
-                    setPlannedDuration(mins);
-                    setStudyMode(mode);
-                  }}
+                  onSetDuration={handleSetDuration}
                   isActionLoading={isActionLoading}
                 />
               </ErrorBoundary>
@@ -929,6 +988,59 @@ export default function StudyTrackerApp() {
           loop 
           className="hidden" 
         />
+      )}
+
+      {/* Confetti Animation Overlay */}
+      <Confetti active={showConfetti} />
+
+      {/* Mobile Sticky Quick Controls FAB */}
+      {activeSession && screen !== "timer" && (
+        <div className="fixed bottom-6 right-6 z-50 lg:hidden flex flex-col items-end gap-3">
+          <AnimatePresence>
+            {isFabExpanded && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 20 }}
+                className="glass-card p-4 flex flex-col gap-3 shadow-2xl border border-white/10 w-48 text-center"
+              >
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted">Session Active</p>
+                <p className="text-lg font-black tracking-tight tabular-nums">{formatHMS(elapsed)}</p>
+                <div className="flex justify-center gap-3">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handlePauseResume(); }}
+                    className="p-3 rounded-xl bg-white/5 hover:bg-white/10 text-white min-w-[44px] min-h-[44px] flex items-center justify-center border border-white/5"
+                    aria-label={activeSession.status === "running" ? "Pause session" : "Resume session"}
+                  >
+                    {activeSession.status === "running" ? <Pause size={16} /> : <Play size={16} />}
+                  </button>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleEnd(); setIsFabExpanded(false); }}
+                    className="p-3 rounded-xl bg-danger/10 hover:bg-danger/20 text-danger border border-danger/20 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                    aria-label="Terminate session"
+                  >
+                    <RefreshCw size={16} />
+                  </button>
+                </div>
+                <button 
+                  onClick={() => { setScreen("timer"); setIsFabExpanded(false); }}
+                  className="text-[9px] font-black uppercase tracking-widest text-accent mt-2 hover:underline"
+                >
+                  Open Full Sync
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <button
+            onClick={() => setIsFabExpanded(!isFabExpanded)}
+            className="w-14 h-14 rounded-full bg-accent text-black flex items-center justify-center shadow-lg shadow-accent/30 border border-accent/20 cursor-pointer animate-glow-pulse"
+            aria-label="Toggle Quick Session Controls"
+            aria-expanded={isFabExpanded}
+          >
+            <Timer size={24} className={activeSession.status === "running" ? "animate-spin" : ""} style={{ animationDuration: "10s" }} />
+          </button>
+        </div>
       )}
     </div>
   );
