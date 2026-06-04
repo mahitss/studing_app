@@ -26,7 +26,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Cookie", "x-timezone-offset", "x-refresh-token"]
+  allowedHeaders: ["Content-Type", "Authorization", "Cookie", "x-timezone-offset", "x-refresh-token", "x-oauth-internal-secret"]
 };
 
 // Security headers

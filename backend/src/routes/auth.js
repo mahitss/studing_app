@@ -363,4 +363,50 @@ router.post("/reset-password", passwordResetLimiter, validate(resetPasswordSchem
   }
 });
 
+// POST /auth/oauth - Secure internal OAuth bridge registration and login
+router.post("/oauth", async (req, res, next) => {
+  try {
+    const secret = req.headers["x-oauth-internal-secret"];
+    if (!secret || secret !== process.env.OAUTH_INTERNAL_SECRET) {
+      return res.status(401).json({ message: "Unauthorized OAuth bridge request" });
+    }
+
+    const { email, name, avatar, provider } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email required for OAuth registration" });
+    }
+
+    let user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      user = await User.create({
+        email: email.toLowerCase(),
+        name: name || "Focused Student",
+        profilePicture: avatar || "",
+        avatar: avatar || "",
+        passwordHash: crypto.randomBytes(16).toString("hex"),
+        isEmailVerified: true
+      });
+      await logAction({ userId: user._id, action: "AUTH_OAUTH_REGISTER", req, details: { provider } });
+    } else {
+      if (avatar && user.profilePicture !== avatar) {
+        user.profilePicture = avatar;
+        user.avatar = avatar;
+        await user.save();
+      }
+      await logAction({ userId: user._id, action: "AUTH_OAUTH_LOGIN", req, details: { provider } });
+    }
+
+    const accessToken = signAccessToken(user);
+    const refreshToken = signRefreshToken(user);
+
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    setAuthCookies(res, accessToken, refreshToken);
+    res.json({ user: sanitizeUser(user), token: accessToken, refreshToken });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

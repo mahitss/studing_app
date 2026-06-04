@@ -25,6 +25,7 @@ export const metadata: Metadata = {
 
 import GrindLock3D from "../components/GrindLock3D";
 import { Toaster } from "react-hot-toast";
+import AuthProvider from "../components/AuthProvider";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -43,7 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <GrindLock3D />
         <div className="relative z-10">
-          {children}
+          <AuthProvider>{children}</AuthProvider>
         </div>
       </body>
     </html>

@@ -49,6 +49,7 @@ import StreakView from "./views/StreakView";
 import { useStore } from "../lib/store";
 import { useSocketSync } from "../hooks/useSocketSync";
 import { useSessionManager } from "../hooks/useSessionManager";
+import { useSession, signOut } from "next-auth/react";
 import NeuralCoach from "./ui/NeuralCoach";
 import Confetti from "./ui/Confetti";
 import NeuralAnalytics from "./ui/NeuralAnalytics";
@@ -155,6 +156,7 @@ function elapsedForSession(session: StudySession, nowMs = Date.now()) {
 
 export default function StudyTrackerApp() {
   const router = useRouter();
+  const { data: session } = useSession();
   const {
     screen, setScreen,
     user, setUser,
@@ -322,6 +324,21 @@ export default function StudyTrackerApp() {
     setError("");
     window.location.reload();
   };
+
+  // Sync NextAuth OAuth Session to local state store and localStorage
+  useEffect(() => {
+    const nextAuthSession = session as any;
+    if (nextAuthSession?.backendUser) {
+      const backendUserObj = nextAuthSession.backendUser;
+      const currentLocalUserId = localStorage.getItem(userKey);
+      
+      if (currentLocalUserId !== backendUserObj.id) {
+        saveAuthSession(backendUserObj.id, backendUserObj.token, backendUserObj.refreshToken);
+        refreshAll(backendUserObj.id);
+        setScreen("dashboard");
+      }
+    }
+  }, [session, refreshAll, setScreen]);
 
   useEffect(() => {
     const rawSettings = localStorage.getItem(settingsKey);
@@ -521,7 +538,9 @@ export default function StudyTrackerApp() {
   const handleLogout = useCallback(() => {
     clearAuthSession();
     setUser(null);
-    window.location.reload();
+    signOut({ redirect: false }).then(() => {
+      window.location.reload();
+    });
   }, [setUser]);
 
   const handleGuestLogin = async () => {
