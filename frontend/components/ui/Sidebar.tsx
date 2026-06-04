@@ -1,5 +1,5 @@
 import React from "react";
-import { LogOut, LayoutDashboard, Timer, BarChart3, Flame, Swords, Settings } from "lucide-react";
+import { LogOut, LayoutDashboard, Timer, BarChart3, Flame, Swords, Settings, ChevronLeft } from "lucide-react";
 import { User, Dashboard } from "../../lib/types";
 import { Screen } from "../../lib/store";
 
@@ -31,10 +31,19 @@ const Sidebar: React.FC<SidebarProps> = ({ user, dashboard, activeScreen, onScre
         onClick={onClose}
       />
       
-      <aside className={`w-80 h-screen fixed left-0 top-0 glass-card border-r border-white/5 flex flex-col p-8 z-[110] transition-transform duration-300 lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-      <div className="flex items-center gap-3 mb-16">
-        <img src="/images/logo.png" alt="GrindLock Logo" className="w-10 h-10 rounded-xl object-contain" />
-        <h1 className="display-sm text-xl tracking-tighter uppercase font-black">GrindLock<span className="text-accent">.</span></h1>
+      <aside className={`w-80 h-screen fixed left-0 top-0 glass-card border-r border-white/5 flex flex-col p-8 z-[110] transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className="flex items-center justify-between mb-16">
+        <div className="flex items-center gap-3">
+          <img src="/images/logo.png" alt="GrindLock Logo" className="w-10 h-10 rounded-xl object-contain" />
+          <h1 className="display-sm text-xl tracking-tighter uppercase font-black">GrindLock<span className="text-accent">.</span></h1>
+        </div>
+        <button 
+          onClick={onClose}
+          className="p-1.5 hover:bg-white/5 text-muted hover:text-white rounded-lg transition-colors duration-200"
+          aria-label="Close Sidebar"
+        >
+          <ChevronLeft size={20} />
+        </button>
       </div>
 
 

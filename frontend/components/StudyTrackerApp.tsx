@@ -204,7 +204,7 @@ export default function StudyTrackerApp() {
   const [webcamEnabled, setWebcamEnabled] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
   const [isCoachOpen, setIsCoachOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
   const [isFabExpanded, setIsFabExpanded] = useState(false);
   const prevCompletedChallengesCount = useRef<number | null>(null);
@@ -229,6 +229,12 @@ export default function StudyTrackerApp() {
       audioRef.current.onpause = () => setAmbientPlaying(false);
     }
   }, [ambientTrack]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setIsSidebarOpen(false);
+    }
+  }, []);
 
   const hiddenAt = useRef<number | null>(null);
 
@@ -831,16 +837,18 @@ export default function StudyTrackerApp() {
         onClose={() => setIsSidebarOpen(false)}
       />
 
-      <main className="flex-1 lg:ml-80 p-6 lg:p-12 transition-all duration-300">
+      <main className={`flex-1 transition-all duration-300 p-6 lg:p-12 ${isSidebarOpen ? "lg:ml-80" : "lg:ml-0"}`}>
         <header className="sticky top-0 z-30 flex items-center justify-between py-4 mb-8 lg:mb-16 bg-[#050505]/80 backdrop-blur-md border-b border-white/5 lg:border-none lg:bg-transparent lg:backdrop-blur-none lg:static lg:py-0">
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden p-2 hover:bg-white/5 rounded-lg text-muted min-w-[44px] min-h-[44px] flex items-center justify-center"
-              aria-label="Open Sidebar"
-            >
-              <LayoutDashboard size={24} />
-            </button>
+            {!isSidebarOpen && (
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-2 hover:bg-white/5 border border-white/10 hover:border-accent/40 rounded-lg text-muted hover:text-accent min-w-[44px] min-h-[44px] flex items-center justify-center transition-all duration-300"
+                aria-label="Open Sidebar"
+              >
+                <LayoutDashboard size={24} />
+              </button>
+            )}
             <div>
               <h2 className="display-md text-2xl lg:text-4xl uppercase tracking-tighter">
                 {navItems.find(n => n.id === screen)?.label || "Neural Node"}
