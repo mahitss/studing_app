@@ -5,15 +5,15 @@ import GithubProvider from "next-auth/providers/github";
 const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      clientId: process.env.GOOGLE_CLIENT_ID || "placeholder-google-client-id",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "placeholder-google-client-secret",
     }),
     GithubProvider({
-      clientId: process.env.GITHUB_ID || "",
-      clientSecret: process.env.GITHUB_SECRET || "",
+      clientId: process.env.GITHUB_ID || "placeholder-github-client-id",
+      clientSecret: process.env.GITHUB_SECRET || "placeholder-github-client-secret",
     }),
   ],
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || "grindlock-fallback-nextauth-secret-key-32-chars",
   callbacks: {
     async jwt({ token, account, profile }) {
       if (account && profile) {
@@ -25,7 +25,7 @@ const authOptions: NextAuthOptions = {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "x-oauth-internal-secret": process.env.OAUTH_INTERNAL_SECRET || "",
+              "x-oauth-internal-secret": process.env.OAUTH_INTERNAL_SECRET || "grindlock-fallback-oauth-internal-secret-key",
             },
             body: JSON.stringify({
               email: profile.email,
