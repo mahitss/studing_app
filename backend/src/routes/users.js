@@ -247,14 +247,81 @@ router.get("/:userId/friends/live", requireAuth, requireSelf, async (req, res, n
 router.post("/:userId/ai-coach", requireAuth, requireSelf, async (req, res, next) => {
   try {
     const { message } = req.body;
-    // Simple mock AI response
-    const replies = [
-      "Keep pushing. Neural link is strong.",
-      "Discipline is the only way.",
-      "Your current trajectory is optimal.",
-      "Focus. The distraction is temporary."
-    ];
-    res.json({ reply: replies[Math.floor(Math.random() * replies.length)] });
+    if (!message) {
+      return res.status(400).json({ message: "Message is required" });
+    }
+
+    // Try Gemini API if key is present
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        const systemPrompt = `You are "Neural Coach", a cold, hyper-disciplined, cyberpunk study mentor for the GrindLock app. 
+Your tone is motivating but strict, calling the user "Operative" or "Focused Student".
+Give a very concise, motivating, and action-oriented response to the user's message. Max 2-3 sentences.
+User's message: "${message}"`;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: systemPrompt }] }],
+            generationConfig: { maxOutputTokens: 150 }
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (replyText && typeof replyText === "string") {
+            return res.json({ reply: replyText.trim() });
+          }
+        }
+      } catch (geminiError) {
+        console.error("Gemini API call failed, falling back to smart rules:", geminiError);
+      }
+    }
+
+    // Smart, contextual pseudo-AI fallback if Gemini is offline or not configured
+    const getFallbackReply = (msgText) => {
+      const msg = (msgText || "").toLowerCase().trim();
+      
+      if (msg.includes("hello") || msg.includes("hi") || msg.includes("hey") || msg.includes("hii")) {
+        const greetings = [
+          "Operative, standard greetings logged. Status is active. What is your focus objective today?",
+          "Neural core linked. State your current target or query, Focused Student.",
+          "Liaison active. No time to waste. Detail your next study sprint."
+        ];
+        return greetings[Math.floor(Math.random() * greetings.length)];
+      }
+      
+      if (msg.includes("what to do") || msg.includes("help") || msg.includes("stuck") || msg.includes("todo")) {
+        return "Initialize a 25-minute Pomodoro block under 'Neural Sync'. Pick one micro-task, eliminate all external inputs, and execute. The path forward is execution.";
+      }
+      
+      if (msg.includes("distracted") || msg.includes("phone") || msg.includes("social") || msg.includes("instagram")) {
+        return "Emergency lock recommended. Place your communication devices in physical isolation. Log a deep focus session immediately. Discipline is freedom.";
+      }
+
+      if (msg.includes("tired") || msg.includes("sleep") || msg.includes("exhausted") || msg.includes("lazy")) {
+        return "Strain detected. If burnout is critical, initiate a 15-minute cooldown. Otherwise, reduce planned duration to 15 minutes, focus purely, and complete it.";
+      }
+      
+      if (msg.includes("streak") || msg.includes("xp") || msg.includes("progress")) {
+        return "Telemetry verification: Streaks and XP are recorded in real-time. Keep daily consistency to maintain your multiplier. Level up is imminent.";
+      }
+
+      const defaultReplies = [
+        "Your telemetry indicates potential for optimization. Pick a subject and start the timer.",
+        "Eliminate the noise. Focus on the single active node.",
+        "Status check: execution is the only variable that matters. Initialize a sync session.",
+        "Every session completed registers permanent XP. Do not break the persistence loop.",
+        "Discipline is the only way. Keep pushing, Operative.",
+        "Your current trajectory is optimal. Maintain speed."
+      ];
+      return defaultReplies[Math.floor(Math.random() * defaultReplies.length)];
+    };
+
+    res.json({ reply: getFallbackReply(message) });
   } catch (err) {
     next(err);
   }
