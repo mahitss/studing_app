@@ -214,6 +214,18 @@ export default function StudyTrackerApp() {
   const [showInstallBtn, setShowInstallBtn] = useState(false);
 
   useEffect(() => {
+    // Register PWA service worker explicitly on client load
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").then(
+        (registration) => {
+          console.log("Service Worker registered successfully with scope:", registration.scope);
+        },
+        (err) => {
+          console.warn("Service Worker registration failed:", err);
+        }
+      );
+    }
+
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
