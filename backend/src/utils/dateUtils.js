@@ -15,7 +15,7 @@ const todayKey = () => {
 
 const yesterdayKey = () => {
   const d = getAdjustedDate();
-  d.setDate(d.getDate() - 1);
+  d.setUTCDate(d.getUTCDate() - 1);
   return d.toISOString().slice(0, 10);
 };
 

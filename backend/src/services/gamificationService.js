@@ -147,7 +147,7 @@ async function updateStreak(userId) {
   if (user.streak.lastActivityDate === today) return;
 
   const yesterday = getAdjustedDate();
-  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
   const yesterdayStr = yesterday.toISOString().slice(0, 10);
 
   if (user.streak.lastActivityDate === yesterdayStr) {

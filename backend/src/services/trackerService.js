@@ -72,7 +72,7 @@ const streakFromGoals = (goals) => {
     const day = byDate.get(key);
     if (day && day.completed) {
       current += 1;
-      cursor.setDate(cursor.getDate() - 1);
+      cursor.setUTCDate(cursor.getUTCDate() - 1);
       continue;
     }
     break;
@@ -89,7 +89,7 @@ const streakFromGoals = (goals) => {
 const weeklyMetrics = (goals, weeklyTargetMinutes = 1200) => {
   const now = getAdjustedDate();
   const from = new Date(now);
-  from.setDate(from.getDate() - 6);
+  from.setUTCDate(from.getUTCDate() - 6);
   const fromKey = from.toISOString().slice(0, 10);
 
   const weeklyGoals = goals.filter((g) => g.date >= fromKey && g.date <= todayKey());
@@ -117,11 +117,11 @@ const weeklyMetrics = (goals, weeklyTargetMinutes = 1200) => {
 const twoWeekSlices = (goals) => {
   const now = getAdjustedDate();
   const startCurrent = new Date(now);
-  startCurrent.setDate(startCurrent.getDate() - 6);
+  startCurrent.setUTCDate(startCurrent.getUTCDate() - 6);
   const endPrevious = new Date(startCurrent);
-  endPrevious.setDate(endPrevious.getDate() - 1);
+  endPrevious.setUTCDate(endPrevious.getUTCDate() - 1);
   const startPrevious = new Date(endPrevious);
-  startPrevious.setDate(startPrevious.getDate() - 6);
+  startPrevious.setUTCDate(startPrevious.getUTCDate() - 6);
 
   const currentFrom = startCurrent.toISOString().slice(0, 10);
   const previousFrom = startPrevious.toISOString().slice(0, 10);
@@ -164,7 +164,7 @@ const dailyHistory = (goals, days = 60) => {
 
   for (let i = days - 1; i >= 0; i -= 1) {
     const date = getAdjustedDate();
-    date.setDate(date.getDate() - i);
+    date.setUTCDate(date.getUTCDate() - i);
     const key = date.toISOString().slice(0, 10);
     const day = byDate.get(key);
     const completionPercent = day?.completionPercent || 0;
@@ -231,7 +231,7 @@ const deepAnalytics = (sessions) => {
 
   const byHour = new Array(24).fill(0);
   sessions.forEach((s) => {
-    byHour[new Date(s.startedAt).getHours()] += s.focusedMinutes || 0;
+    byHour[getAdjustedDate(new Date(s.startedAt)).getUTCHours()] += s.focusedMinutes || 0;
   });
   const bestHour = byHour.indexOf(Math.max(...byHour));
 
@@ -246,11 +246,11 @@ const deepAnalytics = (sessions) => {
   const trendDirection = latestAvg > olderAvg + 5 ? "up" : latestAvg < olderAvg - 5 ? "down" : "flat";
 
   const weekend = sessions.filter((s) => {
-    const day = new Date(s.startedAt).getDay();
+    const day = getAdjustedDate(new Date(s.startedAt)).getUTCDay();
     return day === 0 || day === 6;
   });
   const weekday = sessions.filter((s) => {
-    const day = new Date(s.startedAt).getDay();
+    const day = getAdjustedDate(new Date(s.startedAt)).getUTCDay();
     return day >= 1 && day <= 5;
   });
   const weekendAvg = weekend.length ? weekend.reduce((sum, s) => sum + (s.focusedMinutes || 0), 0) / weekend.length : 0;
@@ -278,7 +278,7 @@ const roastLines = [
 const challengeProgress = (goals, sessions, streak) => {
   const now = getAdjustedDate();
   const from = new Date(now);
-  from.setDate(from.getDate() - 6);
+  from.setUTCDate(from.getUTCDate() - 6);
   const fromKey = from.toISOString().slice(0, 10);
 
   const weeklyGoals = goals.filter((g) => g.date >= fromKey && g.date <= todayKey());
@@ -450,18 +450,18 @@ const qualityBreakdown = (sessions) => {
 const weeklyRealityReport = (goals) => {
   const now = getAdjustedDate();
   const from = new Date(now);
-  from.setDate(from.getDate() - 6);
+  from.setUTCDate(from.getUTCDate() - 6);
   const fromKey = from.toISOString().slice(0, 10);
   const weekly = goals.filter((g) => g.date >= fromKey && g.date <= todayKey());
   if (!weekly.length) {
-    return { available: now.getDay() === 0, message: "No weekly data yet." };
+    return { available: now.getUTCDay() === 0, message: "No weekly data yet." };
   }
   const totalHours = +(weekly.reduce((s, g) => s + (g.studiedMinutes || 0), 0) / 60).toFixed(1);
   const missedDays = weekly.filter((g) => !g.completed).length;
   const best = [...weekly].sort((a, b) => (b.studiedMinutes || 0) - (a.studiedMinutes || 0))[0];
   const worst = [...weekly].sort((a, b) => (a.studiedMinutes || 0) - (b.studiedMinutes || 0))[0];
   return {
-    available: now.getDay() === 0,
+    available: now.getUTCDay() === 0,
     totalHours,
     missedDays,
     bestDay: best?.date || "",
@@ -505,7 +505,7 @@ const weakDayDetection = (goals) => {
   const missCount = new Array(7).fill(0);
   goals.forEach((g) => {
     if (g.completed) return;
-    const idx = new Date(g.date).getDay();
+    const idx = new Date(g.date).getUTCDay();
     missCount[idx] += 1;
   });
   const worstIdx = missCount.indexOf(Math.max(...missCount));
@@ -521,7 +521,7 @@ const weakDayDetection = (goals) => {
 const lazyPattern = (sessions) => {
   const now = getAdjustedDate();
   const from = new Date(now);
-  from.setDate(from.getDate() - 6);
+  from.setUTCDate(from.getUTCDate() - 6);
   const fromKey = from.toISOString().slice(0, 10);
   const weekly = sessions.filter((s) => (s.date || "").slice(0, 10) >= fromKey);
   const earlyQuitCount = weekly.filter(
@@ -550,19 +550,19 @@ const weeklySelfRank = (goals) => {
 
 const monthlyProgress = (goals) => {
   const now = getAdjustedDate();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-  const prevMonthDate = new Date(currentYear, currentMonth - 1, 1);
-  const prevMonth = prevMonthDate.getMonth();
-  const prevYear = prevMonthDate.getFullYear();
+  const currentMonth = now.getUTCMonth();
+  const currentYear = now.getUTCFullYear();
+  const prevMonthDate = new Date(Date.UTC(currentYear, currentMonth - 1, 1));
+  const prevMonth = prevMonthDate.getUTCMonth();
+  const prevYear = prevMonthDate.getUTCFullYear();
 
   const thisMonthGoals = goals.filter((g) => {
     const d = new Date(g.date);
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    return d.getUTCMonth() === currentMonth && d.getUTCFullYear() === currentYear;
   });
   const prevMonthGoals = goals.filter((g) => {
     const d = new Date(g.date);
-    return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
+    return d.getUTCMonth() === prevMonth && d.getUTCFullYear() === prevYear;
   });
 
   const monthlyHours = +(thisMonthGoals.reduce((s, g) => s + (g.studiedMinutes || 0), 0) / 60).toFixed(1);
@@ -657,7 +657,7 @@ const energyPattern = (sessions) => {
   const byHour = new Array(24).fill(0);
   const quitByHour = new Array(24).fill(0);
   sessions.forEach((s) => {
-    const hr = new Date(s.startedAt).getHours();
+    const hr = getAdjustedDate(new Date(s.startedAt)).getUTCHours();
     byHour[hr] += s.focusedMinutes || 0;
     if ((s.stopReason || "").toLowerCase() && (s.focusedMinutes || 0) < 30) quitByHour[hr] += 1;
   });

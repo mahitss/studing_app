@@ -36,7 +36,7 @@ function getTransporter() {
 function weekFromKey() {
   const now = getAdjustedDate();
   const from = new Date(now);
-  from.setDate(from.getDate() - 6);
+  from.setUTCDate(from.getUTCDate() - 6);
   return from.toISOString().slice(0, 10);
 }
 
