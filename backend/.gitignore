@@ -1,6 +1,20 @@
-.vercel
-node_modules
+# Environment files
 .env
-logs
+.env.local
+.env.development
+.env.production
+.env*.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Logs and runtime data
+logs/
 *.log
+
+# OS metadata
 .DS_Store
+
+# Deployment
+.vercel

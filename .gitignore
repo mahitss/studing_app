@@ -1,10 +1,25 @@
-node_modules/
+# Environment files
 .env
 .env.local
+.env.development
+.env.production
+.env*.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Local development and build output
 .next/
 dist/
 coverage/
 *.tsbuildinfo
+logs/
+*.log
 
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Deployment
 .vercel
-.env*.local
