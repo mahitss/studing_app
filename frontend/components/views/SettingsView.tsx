@@ -28,6 +28,8 @@ interface SettingsViewProps {
   webcamEnabled: boolean;
   setWebcamEnabled: (val: boolean) => void;
   onWeb3Update: (ethAddress: string | null) => Promise<void>;
+  showInstallBtn: boolean;
+  handleInstallApp: () => Promise<void>;
 }
 
 const goalSchema = z.object({
@@ -78,6 +80,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   webcamEnabled,
   setWebcamEnabled,
   onWeb3Update,
+  showInstallBtn,
+  handleInstallApp,
 }) => {
   const [linking, setLinking] = React.useState(false);
 
@@ -378,6 +382,26 @@ const SettingsView: React.FC<SettingsViewProps> = ({
           )}
         </div>
       </div>
+
+      {showInstallBtn && (
+        <div className="space-y-6">
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-muted">Application Installation</h3>
+          <div className="glass-card p-6 border border-accent/40 bg-gradient-to-r from-accent/10 to-transparent space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-white">Download GrindLock OS</p>
+                <p className="text-[10px] text-muted uppercase tracking-wider mt-1">Run GrindLock directly from your desktop or dock as a native standalone app.</p>
+              </div>
+              <button
+                onClick={handleInstallApp}
+                className="px-6 py-2.5 bg-accent text-black rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-accent/80 transition-all shadow-[0_0_15px_rgba(var(--color-accent),0.3)] cursor-pointer"
+              >
+                INSTALL NOW
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmitEmail(onEmailSubmit)} className="space-y-6">
         <h3 className="text-xs font-black uppercase tracking-[0.3em] text-muted">Transmission Protocol</h3>

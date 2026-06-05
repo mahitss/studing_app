@@ -208,6 +208,37 @@ export default function StudyTrackerApp() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [isFabExpanded, setIsFabExpanded] = useState(false);
   const prevCompletedChallengesCount = useRef<number | null>(null);
+
+  // PWA Install State & Logic
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBtn(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setShowInstallBtn(false);
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallApp = useCallback(async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User installation choice outcome: ${outcome}`);
+    setDeferredPrompt(null);
+    setShowInstallBtn(false);
+  }, [deferredPrompt]);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -1066,6 +1097,8 @@ export default function StudyTrackerApp() {
                   webcamEnabled={webcamEnabled}
                   setWebcamEnabled={setWebcamEnabled}
                   onWeb3Update={handleWeb3Update}
+                  showInstallBtn={showInstallBtn}
+                  handleInstallApp={handleInstallApp}
                 />
               </ErrorBoundary>
             )}
