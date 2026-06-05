@@ -484,6 +484,20 @@ export async function mockRequest<T>(path: string, init?: RequestInit): Promise<
     return { ok: true, message: "Progress email successfully simulated via Mock API.", summary: { totalHours: 12.5, weeklyHours: 5.2, completionRate: 85 } } as T;
   }
 
+  const premiumMatch = path.match(/^\/users\/([^/]+)\/premium$/);
+  if (premiumMatch && method === "POST") {
+    if (store.user) {
+      store.user.isPremium = true;
+    }
+    const dash = defaultDashboard(store);
+    dash.premiumHooks = {
+      lockedAnalytics: false,
+      lockedAiInsights: false,
+      lockedAdvancedReports: false
+    };
+    return { message: "Discipline pipeline upgraded to Premium", user: store.user, dashboard: dash } as T;
+  }
+
   if (path === "/rooms" && method === "GET") {
     return [
       { _id: "room-1", name: "Neural Sync Deep Work", activeSubject: "Computer Science", members: [], ownerId: { _id: "owner-1", name: "Agent Alpha" } }

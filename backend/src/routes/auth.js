@@ -54,7 +54,7 @@ router.post("/register", authLimiter, validate(registerSchema), async (req, res,
 
     const user = await User.create({
       email: email.toLowerCase(),
-      passwordHash: password, // Will be hashed by pre-save hook
+      passwordHash: password,
       name: name || "Focused Student"
     });
 

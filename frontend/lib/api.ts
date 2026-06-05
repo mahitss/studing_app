@@ -510,3 +510,9 @@ export async function placeXPBet(roomId: string, userId: string, amount: number,
     body: JSON.stringify({ userId, amount, outcome })
   });
 }
+
+export async function upgradeToPremium(userId: string): Promise<{ user: User; dashboard: Dashboard }> {
+  return request(`/users/${userId}/premium`, {
+    method: "POST"
+  });
+}

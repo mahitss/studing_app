@@ -13,7 +13,11 @@ import {
   Calendar, 
   X, 
   Sparkle, 
-  Clock 
+  Clock,
+  Lock,
+  Unlock,
+  CreditCard,
+  RefreshCw
 } from "lucide-react";
 import { Dashboard, User } from "../../lib/types";
 import PetPanel from "../ui/PetPanel";
@@ -21,6 +25,9 @@ import ChallengeList from "../ui/ChallengeList";
 import { BadgeGallery } from "../ui/BadgeGallery";
 import { StudyGroupPanel } from "../ui/StudyGroupPanel";
 import TodoWidget from "../ui/TodoWidget";
+import { useStore } from "../../lib/store";
+import { upgradeToPremium } from "../../lib/api";
+import toast from "react-hot-toast";
 
 interface DashboardViewProps {
   user: User;
@@ -32,6 +39,34 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, dashboard, goalDail
   const isLoading = !dashboard;
   const [activeTab, setActiveTab] = useState<"overview" | "history">("overview");
   const [isClosed, setIsClosed] = useState(false);
+  const { setUser, setDashboard } = useStore();
+
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvc, setCardCvc] = useState("");
+
+  const handleUpgrade = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cardNumber || !cardExpiry || !cardCvc) {
+      toast.error("Please fill in all neural transaction fields.");
+      return;
+    }
+    try {
+      setUpgrading(true);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const res = await upgradeToPremium(user._id);
+      setUser(res.user);
+      setDashboard(res.dashboard);
+      toast.success("Discipline Pipeline Upgraded to Premium. Neural network fully unlocked.");
+      setCheckoutOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || "Upgrade transaction failed.");
+    } finally {
+      setUpgrading(false);
+    }
+  };
 
   // Sync collapsed state to localStorage
   useEffect(() => {
@@ -259,7 +294,20 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, dashboard, goalDail
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                  <StudyGroupPanel groups={dashboard?.groups || []} />
                  {/* AI Coach Suggestion Card */}
-                 <div className="glass-card p-8 bg-gradient-to-r from-accent/10 via-transparent to-transparent border-accent/20 flex flex-col justify-center">
+                 <div className="glass-card p-8 bg-gradient-to-r from-accent/10 via-transparent to-transparent border-accent/20 flex flex-col justify-center relative overflow-hidden">
+                   {dashboard?.premiumHooks?.lockedAiInsights && (
+                     <div className="absolute inset-0 bg-black/60 backdrop-blur-md z-10 flex flex-col items-center justify-center p-6 text-center">
+                       <Lock className="text-accent mb-3 animate-pulse" size={24} />
+                       <p className="text-xs font-black uppercase tracking-widest text-white">Neural Advisor Locked</p>
+                       <p className="text-[9px] text-muted uppercase tracking-wider mt-1 mb-4 leading-relaxed">Upgrade to Premium to unlock AI study strategy insights.</p>
+                       <button
+                         onClick={() => setCheckoutOpen(true)}
+                         className="px-4 py-2 bg-accent text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-accent/80 transition-all"
+                       >
+                         Unlock Insights
+                       </button>
+                     </div>
+                   )}
                    <div className="flex items-start gap-6">
                      <div className="p-4 bg-accent/20 rounded-2xl">
                        <Brain size={32} className="text-accent" />
@@ -370,10 +418,26 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, dashboard, goalDail
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
             transition={{ duration: 0.3 }}
-            className="space-y-12"
+            className="space-y-12 relative overflow-hidden"
           >
-            {/* History Stats Bar */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {dashboard?.premiumHooks?.lockedAnalytics ? (
+              <div className="glass-card p-16 text-center border-accent/20 max-w-xl mx-auto flex flex-col items-center justify-center space-y-6">
+                <Lock className="text-accent animate-pulse" size={40} />
+                <h3 className="text-lg font-black uppercase tracking-widest text-white">Neural Analytics Locked</h3>
+                <p className="text-xs text-muted uppercase tracking-wider max-w-md leading-relaxed">
+                  Upgrade to Premium to unlock detailed study maps, historical heatmap logs, compliance calculations, and weekly wasted hour statistics.
+                </p>
+                <button
+                  onClick={() => setCheckoutOpen(true)}
+                  className="btn-primary px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(var(--color-accent),0.3)] hover:scale-105 transition-all"
+                >
+                  Unlock Neural Analytics
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* History Stats Bar */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="glass-card p-6">
                 <span className="text-[10px] font-black uppercase tracking-widest text-muted">Total Hours</span>
                 <p className="display-sm text-3xl font-black text-accent mt-2">{dashboard?.totals?.totalStudyHours || 0} hrs</p>
@@ -457,6 +521,121 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, dashboard, goalDail
                 )}
               </div>
             </section>
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Checkout Payment Simulation Modal */}
+      <AnimatePresence>
+        {checkoutOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+            role="dialog"
+            aria-modal="true"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="glass-card max-w-md w-full p-8 border border-accent/40 relative overflow-hidden bg-[#0a0a0c]"
+            >
+              <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-accent to-success" />
+              <button 
+                onClick={() => setCheckoutOpen(false)}
+                className="absolute top-4 right-4 text-muted hover:text-white transition-all"
+                aria-label="Close Checkout"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-accent/20 rounded-xl text-accent border border-accent/30">
+                  <CreditCard size={24} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-white">Neural Premium Upgrade</h3>
+                  <p className="text-[9px] text-muted uppercase tracking-wider mt-0.5">Initialize secure transaction pipeline</p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-white/5 border border-white/5 space-y-2 mb-6">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted font-bold uppercase tracking-wider">Premium Access License</span>
+                  <span className="text-white font-black">$9.99 / Lifetime</span>
+                </div>
+                <div className="flex justify-between text-[9px] text-muted uppercase tracking-widest border-t border-white/5 pt-2">
+                  <span>Taxes &amp; Gas Fees</span>
+                  <span>$0.00</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleUpgrade} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-muted">Card Number</label>
+                  <input 
+                    type="text"
+                    placeholder="4111 2222 3333 4444"
+                    value={cardNumber}
+                    onChange={(e) => setCardNumber(e.target.value)}
+                    maxLength={19}
+                    className="w-full bg-black/60 border border-white/10 text-xs px-3 py-2 rounded-lg text-white"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-muted">Expiration Date</label>
+                    <input 
+                      type="text"
+                      placeholder="MM/YY"
+                      value={cardExpiry}
+                      onChange={(e) => setCardExpiry(e.target.value)}
+                      maxLength={5}
+                      className="w-full bg-black/60 border border-white/10 text-xs px-3 py-2 rounded-lg text-white"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-muted">Security Code (CVC)</label>
+                    <input 
+                      type="password"
+                      placeholder="•••"
+                      value={cardCvc}
+                      onChange={(e) => setCardCvc(e.target.value)}
+                      maxLength={4}
+                      className="w-full bg-black/60 border border-white/10 text-xs px-3 py-2 rounded-lg text-white"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="text-[9px] text-muted uppercase tracking-wide leading-relaxed mt-2 text-center">
+                  This transaction is fully simulated. No real currency will be charged.
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={upgrading}
+                  className="btn-primary w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest mt-6 flex items-center justify-center gap-2"
+                >
+                  {upgrading ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      PROCESSING TRANSACTION...
+                    </>
+                  ) : (
+                    <>
+                      <Unlock size={14} />
+                      CONFIRM UPGRADE
+                    </>
+                  )}
+                </button>
+              </form>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

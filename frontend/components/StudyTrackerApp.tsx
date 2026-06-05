@@ -223,6 +223,71 @@ export default function StudyTrackerApp() {
     setInactiveSeconds 
   } = useSessionManager();
 
+  // Webcam stream logic hook
+  useEffect(() => {
+    let activeStream: MediaStream | null = null;
+    async function enableCam() {
+      if (webcamEnabled && activeSession?.status === "running") {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          activeStream = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        } catch (err) {
+          console.error("Camera access failed:", err);
+          setError("Failed to initialize webcam node. Access denied.");
+          setWebcamEnabled(false);
+        }
+      } else {
+        if (videoRef.current) {
+          videoRef.current.srcObject = null;
+        }
+      }
+    }
+    enableCam();
+    return () => {
+      if (activeStream) {
+        activeStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [webcamEnabled, activeSession?.status, setError]);
+
+  // Command console drawer logic
+  const [commandTerminalOpen, setCommandTerminalOpen] = useState(false);
+  const [commandInput, setCommandInput] = useState("");
+  
+  const handleCommandSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cmd = commandInput.toLowerCase().trim();
+    setCommandInput("");
+    
+    if (cmd.includes("start timer") || cmd.includes("begin focus") || cmd.includes("start focus")) {
+      handleStart();
+      toast.success("Command accepted: Initializing Focus timer.");
+    } else if (cmd.includes("pause") || cmd.includes("hold focus")) {
+      handlePauseResume();
+      toast.success("Command accepted: Focus session paused.");
+    } else if (cmd.includes("resume") || cmd.includes("continue focus")) {
+      handlePauseResume();
+      toast.success("Command accepted: Focus session resumed.");
+    } else if (cmd.includes("stop focus") || cmd.includes("finish") || cmd.includes("end session")) {
+      handleEnd();
+      toast.success("Command accepted: Terminating Focus session.");
+    } else if (cmd.includes("dashboard")) {
+      setScreen("dashboard");
+      toast.success("Command accepted: Route shifted to Dashboard.");
+    } else if (cmd.includes("analytics") || cmd.includes("map")) {
+      setScreen("analytics");
+      toast.success("Command accepted: Route shifted to Analytics.");
+    } else if (cmd.includes("settings")) {
+      setScreen("settings");
+      toast.success("Command accepted: Route shifted to Settings.");
+    } else {
+      toast.error(`Unknown sync command: "${cmd}".`);
+    }
+  };
+
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.onplay = () => setAmbientPlaying(true);
@@ -324,6 +389,21 @@ export default function StudyTrackerApp() {
       setError("Critical telemetry failure. Protocol: Manual Refresh.");
     }
   }, [setDashboard, setUser, setGoalDaily, setGoalWeekly, setIdentityType, summaryEmail, setSummaryEmail, setError, setSessions, setActiveSession, setSubject, setStudyMode, setPlannedDuration, setRiskMode, setLiveFriends, setLiveMessage, setLastSyncAt]);
+
+  // Web3 linkage persistence
+  const handleWeb3Update = useCallback(async (ethAddress: string | null) => {
+    if (!user) return;
+    try {
+      setIsActionLoading(true);
+      await setModes(user._id, settings.roastMode, identityType, motivationWhy, ethAddress || "");
+      await refreshAll(user._id);
+    } catch (err: any) {
+      setError("Web3 linkage failed. Node connection unstable.");
+      throw err;
+    } finally {
+      setIsActionLoading(false);
+    }
+  }, [user, settings.roastMode, identityType, motivationWhy, refreshAll, setError, setIsActionLoading]);
 
   const handleManualOffline = () => {
     localStorage.setItem("study-tracker-pref-mock", "true");
@@ -876,6 +956,15 @@ export default function StudyTrackerApp() {
               </span>
             </button>
             <button 
+              onClick={() => setCommandTerminalOpen(!commandTerminalOpen)}
+              className={`p-2 rounded-lg transition-all flex items-center gap-2 min-w-[44px] min-h-[44px] justify-center ${commandTerminalOpen ? 'bg-accent/20 border border-accent/40 text-accent animate-pulse shadow-[0_0_15px_rgba(var(--color-accent),0.3)]' : 'nav-btn hover:bg-white/5 text-white/50'}`}
+              title="Open Command Terminal"
+              aria-label="Open Command Terminal"
+            >
+              <Box size={20} />
+              <span className="text-[10px] font-black uppercase tracking-widest hidden md:block">Console</span>
+            </button>
+            <button 
               className={`p-2 rounded-lg transition-all min-w-[44px] min-h-[44px] flex items-center justify-center ${isCoachOpen ? "bg-accent/20 text-accent" : "nav-btn hover:bg-white/5"}`}
               onClick={() => setIsCoachOpen(true)}
               aria-label="Open Neural Coach"
@@ -974,6 +1063,9 @@ export default function StudyTrackerApp() {
                       localStorage.setItem(settingsKey, JSON.stringify(newSettings));
                     } catch (e) {}
                   }}
+                  webcamEnabled={webcamEnabled}
+                  setWebcamEnabled={setWebcamEnabled}
+                  onWeb3Update={handleWeb3Update}
                 />
               </ErrorBoundary>
             )}
@@ -1003,6 +1095,23 @@ export default function StudyTrackerApp() {
               </div>
               <button onClick={() => setError("")} className="mt-4 text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100">Dismiss</button>
             </div>
+          </div>
+        )}
+
+        {commandTerminalOpen && (
+          <div className="fixed bottom-24 right-6 left-6 lg:left-auto lg:bottom-28 lg:right-10 z-[200] w-auto lg:w-80 glass-card p-4 border border-accent/40 shadow-2xl">
+            <p className="text-[9px] font-black uppercase tracking-widest text-accent mb-2">Neural Command Console</p>
+            <form onSubmit={handleCommandSubmit} className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Type command (e.g. 'start timer')..."
+                value={commandInput}
+                onChange={(e) => setCommandInput(e.target.value)}
+                className="flex-1 bg-black/60 border border-white/10 text-xs px-3 py-1.5 focus:border-accent/40 rounded-lg text-white font-mono"
+                autoFocus
+              />
+              <button type="submit" className="px-3 py-1.5 bg-accent text-black rounded-lg font-bold text-xs uppercase hover:bg-accent/80 transition-all">Run</button>
+            </form>
           </div>
         )}
 

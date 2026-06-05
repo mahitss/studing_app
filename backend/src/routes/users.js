@@ -15,6 +15,7 @@ const DailyGoal = require("../models/DailyGoal");
 const AuditLog = require("../models/AuditLog");
 const { requireAuth, requireSelf } = require("../middleware/auth");
 const trackerService = require("../services/trackerService");
+const gamificationService = require("../services/gamificationService");
 const emailService = require("../services/emailService");
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = require("../middleware/auth");
@@ -181,6 +182,17 @@ router.post("/:userId/sessions/offline-sync", requireAuth, requireSelf, sessionL
 
     const created = await StudySession.insertMany(validatedSessions);
 
+    try {
+      await gamificationService.ensureDailyChallenges(req.params.userId);
+      for (const s of created) {
+        await gamificationService.updateStreak(s.userId);
+        await gamificationService.updateChallengeProgress(s.userId, "minutes", s.focusedMinutes);
+        await gamificationService.updateChallengeProgress(s.userId, "subjects", 1);
+      }
+    } catch (gamifyErr) {
+      console.warn("Gamification telemetry update failed for offline sync:", gamifyErr.message);
+    }
+
     await trackerService.recalculateDailyTotals(req.params.userId);
     const dashboard = await trackerService.dashboardForUser(req.params.userId);
 
@@ -228,15 +240,43 @@ router.post("/:userId/friends/add", requireAuth, requireSelf, async (req, res, n
 router.get("/:userId/friends/live", requireAuth, requireSelf, async (req, res, next) => {
   try {
     const user = await User.findById(req.params.userId).populate("friends", "name xp level streak college");
-    const friends = user.friends.map(f => ({
-      ...f.toObject(),
-      isLive: Math.random() > 0.7, // Mocking live status
-      currentSubject: "Neural Science"
-    }));
+    const io = req.app.get("io");
+    
+    const friends = [];
+    for (const f of user.friends) {
+      const friendIdStr = f._id.toString();
+      const room = io ? io.sockets.adapter.rooms.get(friendIdStr) : null;
+      const isLive = room && room.size > 0;
+      
+      let currentSubject = "";
+      let studyingNow = false;
+      
+      if (isLive) {
+        const activeSession = await StudySession.findOne({ userId: f._id, status: "running" });
+        if (activeSession) {
+          currentSubject = activeSession.subject || "General";
+          studyingNow = true;
+        } else {
+          currentSubject = "Idle";
+        }
+      }
+      
+      friends.push({
+        userId: friendIdStr,
+        name: f.name,
+        level: f.level || 1,
+        studyingNow,
+        isLive: !!isLive,
+        currentSubject
+      });
+    }
+    
     res.json({ 
       friends, 
-      studyingNowCount: friends.filter(f => f.isLive).length, 
-      liveMessage: "Neural network synchronization optimal." 
+      studyingNowCount: friends.filter(f => f.studyingNow).length, 
+      liveMessage: friends.filter(f => f.isLive).length > 0
+        ? "Neural network synchronization optimal. Sprints active."
+        : "Neural net idle. No active friend signals detected." 
     });
   } catch (err) {
     next(err);
@@ -547,6 +587,15 @@ router.post("/:userId/sessions/:sessionId/end", requireAuth, requireSelf, sessio
     await logAction({ userId: session.userId, action: "SESSION_END", req, details: { sessionId: session._id, focusedMinutes: session.focusedMinutes } });
     dispatchWebhook(session.userId, "session.end", { sessionId: session._id, focusedMinutes: session.focusedMinutes }).catch(() => {});
     
+    try {
+      await gamificationService.ensureDailyChallenges(session.userId);
+      await gamificationService.updateStreak(session.userId);
+      await gamificationService.updateChallengeProgress(session.userId, "minutes", session.focusedMinutes);
+      await gamificationService.updateChallengeProgress(session.userId, "subjects", 1);
+    } catch (gamifyErr) {
+      console.warn("Gamification telemetry update failed:", gamifyErr.message);
+    }
+
     await trackerService.recalculateDailyTotals(session.userId);
     const dashboard = await trackerService.dashboardForUser(session.userId);
     
@@ -651,6 +700,24 @@ router.put("/:userId", requireAuth, requireSelf, validate(updateUserProfileSchem
     await user.save();
     await logAction({ userId: user._id, action: "USER_PROFILE_UPDATE", req });
     res.json({ message: "Profile updated successfully", user: sanitizeUser(user) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /users/:userId/premium - Upgrade user to premium
+router.post("/:userId/premium", requireAuth, requireSelf, async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.isPremium = true;
+    await user.save();
+    
+    await logAction({ userId: user._id, action: "USER_PREMIUM_UPGRADE", req });
+    const dashboard = await trackerService.dashboardForUser(user._id);
+
+    res.json({ message: "Discipline pipeline upgraded to Premium", user: sanitizeUser(user), dashboard });
   } catch (err) {
     next(err);
   }

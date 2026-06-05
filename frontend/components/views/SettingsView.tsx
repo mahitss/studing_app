@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import toast from "react-hot-toast";
 import { User, Dashboard } from "../../lib/types";
+import { Wallet, RefreshCw } from "lucide-react";
 
 interface SettingsViewProps {
   user: User | null;
@@ -24,6 +25,9 @@ interface SettingsViewProps {
   onSendEmail: (email: string) => Promise<void>;
   roastMode: boolean;
   setRoastMode: (val: boolean) => void;
+  webcamEnabled: boolean;
+  setWebcamEnabled: (val: boolean) => void;
+  onWeb3Update: (ethAddress: string | null) => Promise<void>;
 }
 
 const goalSchema = z.object({
@@ -54,6 +58,7 @@ type IdentityFormValues = z.infer<typeof identitySchema>;
 type EmailFormValues = z.infer<typeof emailSchema>;
 
 const SettingsView: React.FC<SettingsViewProps> = ({
+  user,
   goalDaily,
   goalWeekly,
   identityType,
@@ -70,7 +75,53 @@ const SettingsView: React.FC<SettingsViewProps> = ({
   onSendEmail,
   roastMode,
   setRoastMode,
+  webcamEnabled,
+  setWebcamEnabled,
+  onWeb3Update,
 }) => {
+  const [linking, setLinking] = React.useState(false);
+
+  const handleConnectWallet = async () => {
+    if (typeof window === "undefined") return;
+    const ethereum = (window as any).ethereum;
+    if (!ethereum) {
+      toast.error("No Ethereum wallet detected. Install MetaMask.");
+      return;
+    }
+    try {
+      setLinking(true);
+      const accounts = await ethereum.request({ method: "eth_requestAccounts" });
+      const address = accounts[0];
+      if (!address) throw new Error("No accounts found.");
+
+      const message = `GrindLock Node Verification: Link address ${address.toLowerCase()} to account ${user?._id} at timestamp ${Date.now()}`;
+      const signature = await ethereum.request({
+        method: "personal_sign",
+        params: [message, address],
+      });
+
+      if (signature) {
+        await onWeb3Update(address);
+        toast.success("Web3 wallet node linked and verified.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Web3 linking aborted.");
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  const handleDisconnectWallet = async () => {
+    try {
+      setLinking(true);
+      await onWeb3Update(null);
+      toast.success("Web3 wallet unlinked.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to unlink wallet.");
+    } finally {
+      setLinking(false);
+    }
+  };
   const {
     register: registerGoal,
     handleSubmit: handleSubmitGoal,
@@ -254,6 +305,79 @@ const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
         </div>
       </form>
+
+      <div className="space-y-6">
+        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-muted">Webcam & Hardware</h3>
+        <div className="glass-card p-6 border border-white/5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-white">Visual Focus Verification</p>
+              <p className="text-[10px] text-muted uppercase tracking-wider mt-1">Enable corner camera feed during study sessions</p>
+            </div>
+            <button
+              onClick={() => setWebcamEnabled(!webcamEnabled)}
+              className={`px-6 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all ${
+                webcamEnabled 
+                  ? "bg-accent/20 border border-accent/40 text-accent animate-pulse" 
+                  : "bg-white/5 border border-white/10 text-white/50 hover:bg-white/10"
+              }`}
+            >
+              {webcamEnabled ? "WEBCAM ACTIVE" : "WEBCAM INACTIVE"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-muted">Neural Web3 Registry</h3>
+        <div className="glass-card p-6 border border-white/5 space-y-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-white/5 rounded-xl border border-white/10">
+              <Wallet size={24} className="text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-white">Cryptographic Identity</p>
+              <p className="text-[10px] text-muted uppercase tracking-wider mt-1">Link your Web3 wallet address to establish decentralized proof of focus consistency.</p>
+            </div>
+          </div>
+          
+          {user?.ethAddress ? (
+            <div className="flex items-center justify-between p-4 bg-black/40 border border-success/20 rounded-xl">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-success">UPLINK ENCRYPTED</p>
+                <p className="text-xs font-mono text-white/90 mt-1">
+                  {user.ethAddress.slice(0, 6)}...{user.ethAddress.slice(-4)}
+                </p>
+              </div>
+              <button
+                onClick={handleDisconnectWallet}
+                disabled={linking}
+                className="text-[9px] font-black uppercase tracking-widest text-danger hover:underline"
+              >
+                UNLINK NODE
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleConnectWallet}
+              disabled={linking}
+              className="btn-primary w-full py-3.5 rounded-xl font-bold text-xs tracking-wider flex items-center justify-center gap-2"
+            >
+              {linking ? (
+                <>
+                  <RefreshCw size={14} className="animate-spin" />
+                  CONNECTING WALLET...
+                </>
+              ) : (
+                <>
+                  <Wallet size={14} />
+                  LINK METAMASK WALLET
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
 
       <form onSubmit={handleSubmitEmail(onEmailSubmit)} className="space-y-6">
         <h3 className="text-xs font-black uppercase tracking-[0.3em] text-muted">Transmission Protocol</h3>

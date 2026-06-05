@@ -7,6 +7,7 @@ export type User = {
   level?: number;
   badges?: string[];
   ethAddress?: string;
+  isPremium?: boolean;
   streak?: {
     current: number;
     longest: number;

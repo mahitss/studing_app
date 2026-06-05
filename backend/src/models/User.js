@@ -44,6 +44,7 @@ const userSchema = new mongoose.Schema(
     deletedAt: { type: Date, default: null },
     isActive: { type: Boolean, default: true },
     role: { type: String, enum: ["user", "admin"], default: "user" },
+    isPremium: { type: Boolean, default: false },
     twoFactorSecret: { type: String, default: "" },
     twoFactorEnabled: { type: Boolean, default: false },
     passwordResetToken: { type: String, default: "" },

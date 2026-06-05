@@ -914,9 +914,9 @@ const dashboardForUser = async (userId) => {
       randomCheckEnabled: true
     },
     premiumHooks: {
-      lockedAnalytics: true,
-      lockedAiInsights: true,
-      lockedAdvancedReports: true
+      lockedAnalytics: !user.isPremium,
+      lockedAiInsights: !user.isPremium,
+      lockedAdvancedReports: !user.isPremium
     },
     brutalMessage: weekly.weeklyWastedHours > 0
       ? `You wasted ${weekly.weeklyWastedHours} hours this week. Discipline up.`

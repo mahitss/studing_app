@@ -28,6 +28,10 @@ const connectDB = async () => {
     return mongoose.connection;
   } catch (err) {
     console.warn(`⚠️ MongoDB connection failed: ${err.message}`);
+    if (err.message.includes("IP") || err.message.includes("whitelist") || err.name === "MongooseServerSelectionError") {
+      console.error("🔴 CRITICAL DIAGNOSTIC: This error usually indicates that your IP address is not whitelisted in MongoDB Atlas.");
+      console.error("👉 Please log into your MongoDB Atlas Console (https://cloud.mongodb.com/), navigate to Security -> Network Access, and add 0.0.0.0/0 (or your specific IP) to authorize connections.");
+    }
     if (process.env.NODE_ENV === "production" || process.env.VERCEL === "1") {
       console.error(`❌ MongoDB connection failed in production: ${err.message}`);
       cachedConnection = null;
@@ -48,7 +52,6 @@ const connectDB = async () => {
       await cachedConnection;
       console.log(`✅ Connected to local in-memory MongoDB successfully!`);
 
-      // Auto-seed achievements
       try {
         const Achievement = require("../models/Achievement");
         const count = await Achievement.countDocuments();
