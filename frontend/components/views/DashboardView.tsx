@@ -472,12 +472,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, dashboard, goalDail
                     key={i} 
                     className={`w-6 h-6 rounded-md flex items-center justify-center transition-all hover:scale-110 hover:brightness-125 relative group cursor-pointer ${
                       day.completionPercent >= 100
-                        ? "bg-success border border-success/40"
+                        ? "heatmap-complete"
+                        : day.completionPercent >= 75
+                        ? "heatmap-high"
                         : day.completionPercent >= 50
-                        ? "bg-warning/80 border border-warning/20"
+                        ? "heatmap-medium"
                         : day.completionPercent > 0
-                        ? "bg-accent/60 border border-accent/20"
-                        : "bg-white/5 border border-white/5"
+                        ? "heatmap-low"
+                        : "heatmap-empty"
                     }`}
                   >
                     {/* Tooltip popup on hover */}
